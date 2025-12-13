@@ -85,6 +85,46 @@
         .type-container { background: #90cdf4; color: #2a4365; }
         .type-other { background: #cbd5e0; color: #1a202c; }
         
+        /* Forecast panel styles */
+        .forecast-panel {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 320px;
+            font-size: 12px;
+        }
+        .forecast-panel h3 { font-size: 14px; margin-bottom: 8px; color: #1a365d; }
+        .forecast-window {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 8px;
+            margin: 4px 0;
+            border-radius: 4px;
+            background: #f7fafc;
+        }
+        .forecast-window.urgent { border-left: 3px solid #e53e3e; }
+        .forecast-window.soon { border-left: 3px solid #f6ad55; }
+        .forecast-window.upcoming { border-left: 3px solid #68d391; }
+        .forecast-window .window-label { font-weight: bold; color: #2d3748; }
+        .forecast-window .ship-count { color: #4a5568; }
+        .forecast-window .surge { font-size: 10px; }
+        .surge-high { color: #e53e3e; }
+        .surge-moderate { color: #dd6b20; }
+        .surge-normal { color: #38a169; }
+        .forecast-stats {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 11px;
+            color: #718096;
+        }
+        .forecast-stats div { margin: 3px 0; }
+        
         /* Rail styles */
         .legend-line { width: 20px; height: 3px; margin-right: 8px; border-radius: 2px; }
         .rail-up { background: #eab308; }
@@ -222,10 +262,20 @@
         </div>
     </div>
 
+    <!-- Ship Arrival Forecast Panel -->
+    <div class="forecast-panel" id="forecastPanel">
+        <h3>📊 72-Hour Ship Forecast</h3>
+        <div id="forecastContent">
+            <div style="color:#718096; font-style:italic;">Loading forecast...</div>
+        </div>
+        <div class="forecast-stats" id="forecastStats"></div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="js/ship-forecasting.js"></script>
     <script>
         // Initialize map centered on Port of Houston / Galveston Bay
-        const map = L.map('map').setView([29.6, -94.85], 10);
+        const map = L.map('map').setView([28.8, -94.5], 8);
 
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -367,11 +417,11 @@
             
             try {
                 // Bounding box for Galveston Bay / Houston Ship Channel area
-                // Extended further into Gulf of Mexico to capture approaching vessels
-                const minLat = 28.8;
-                const maxLat = 29.9;
-                const minLon = -95.4;
-                const maxLon = -94.0;
+                // Extended far into Gulf of Mexico to capture approaching vessels (100+ nm out)
+                const minLat = 27.5;  // ~150nm south into Gulf
+                const maxLat = 30.0;
+                const minLon = -96.0;
+                const maxLon = -93.0;  // Extended east into Gulf
                 
                 // Try ArcGIS Maritime service
                 const response = await fetch(
@@ -433,10 +483,10 @@
             aisSocket = new WebSocket('wss://stream.aisstream.io/v0/stream');
             
             aisSocket.onopen = () => {
-                // Subscribe to Houston Ship Channel area (extended into Gulf)
+                // Subscribe to Houston Ship Channel area (extended far into Gulf - 100+ nm)
                 const subscribeMsg = {
                     APIKey: AIS_API_KEY,
-                    BoundingBoxes: [[[-95.4, 28.8], [-94.0, 29.9]]]
+                    BoundingBoxes: [[[-96.0, 27.5], [-93.0, 30.0]]]
                 };
                 aisSocket.send(JSON.stringify(subscribeMsg));
                 setStatus('Connected to live AIS stream', 'success');
@@ -504,12 +554,24 @@
             const flags = ['US', 'PA', 'LR', 'MH', 'SG', 'HK', 'GR', 'MT', 'BS', 'CY', 'NO', 'DK'];
             
             const vessels = [];
-            const numVessels = 18 + Math.floor(Math.random() * 8);
+            const numVessels = 28 + Math.floor(Math.random() * 12); // More vessels for extended range
             
             // Define realistic ship positions along the actual shipping lanes
-            // Extended further into Gulf of Mexico for approaching vessels
+            // Extended far into Gulf of Mexico for approaching vessels (100+ nm out)
             const shipPositions = [
-                // Gulf of Mexico - ships approaching from open water
+                // Deep Gulf of Mexico - ships 80-120nm out (48-72 hour ETA)
+                { lat: 27.8, lng: -93.5, heading: 315, zone: 'deep-gulf' },
+                { lat: 27.9, lng: -93.8, heading: 320, zone: 'deep-gulf' },
+                { lat: 28.0, lng: -94.0, heading: 325, zone: 'deep-gulf' },
+                { lat: 28.1, lng: -93.6, heading: 318, zone: 'deep-gulf' },
+                // Mid Gulf - ships 50-80nm out (24-48 hour ETA)
+                { lat: 28.3, lng: -94.0, heading: 330, zone: 'mid-gulf' },
+                { lat: 28.4, lng: -94.2, heading: 328, zone: 'mid-gulf' },
+                { lat: 28.5, lng: -93.9, heading: 332, zone: 'mid-gulf' },
+                { lat: 28.55, lng: -94.1, heading: 335, zone: 'mid-gulf' },
+                // Near Gulf - ships 20-50nm out (12-24 hour ETA)
+                { lat: 28.7, lng: -94.2, heading: 338, zone: 'near-gulf' },
+                { lat: 28.8, lng: -94.3, heading: 340, zone: 'near-gulf' },
                 { lat: 28.95, lng: -94.35, heading: 340, zone: 'gulf' },
                 { lat: 29.02, lng: -94.42, heading: 335, zone: 'gulf' },
                 { lat: 29.08, lng: -94.48, heading: 332, zone: 'gulf' },
@@ -557,13 +619,30 @@
                         heading: pos.heading + (Math.random() - 0.5) * 15
                     };
                 } else {
-                    // Extra random ships - some in bay, some in Gulf approach
-                    const inGulf = Math.random() > 0.5;
-                    if (inGulf) {
+                    // Extra random ships - distributed across Gulf zones
+                    const zoneRoll = Math.random();
+                    if (zoneRoll < 0.3) {
+                        // Deep Gulf (80-120nm out)
                         pos = {
-                            lat: 29.0 + Math.random() * 0.25,
-                            lng: -94.3 + (Math.random() - 0.5) * 0.3,
-                            heading: 320 + Math.random() * 40,
+                            lat: 27.7 + Math.random() * 0.5,
+                            lng: -93.3 - Math.random() * 0.8,
+                            heading: 310 + Math.random() * 30,
+                            zone: 'deep-gulf'
+                        };
+                    } else if (zoneRoll < 0.6) {
+                        // Mid Gulf (50-80nm out)
+                        pos = {
+                            lat: 28.2 + Math.random() * 0.4,
+                            lng: -93.8 - Math.random() * 0.5,
+                            heading: 320 + Math.random() * 30,
+                            zone: 'mid-gulf'
+                        };
+                    } else if (zoneRoll < 0.85) {
+                        // Near Gulf approach
+                        pos = {
+                            lat: 28.7 + Math.random() * 0.4,
+                            lng: -94.2 + (Math.random() - 0.5) * 0.4,
+                            heading: 330 + Math.random() * 25,
                             zone: 'gulf'
                         };
                     } else {
@@ -584,10 +663,14 @@
                     speed = Math.random() * 1;
                 } else if (pos.zone === 'channel' || pos.zone === 'upper') {
                     speed = 6 + Math.random() * 6; // 6-12 knots in channel
-                } else if (pos.zone === 'gulf') {
-                    speed = 12 + Math.random() * 10; // 12-22 knots in Gulf
+                } else if (pos.zone === 'deep-gulf') {
+                    speed = 14 + Math.random() * 8; // 14-22 knots in deep Gulf (full speed)
+                } else if (pos.zone === 'mid-gulf') {
+                    speed = 13 + Math.random() * 7; // 13-20 knots in mid Gulf
+                } else if (pos.zone === 'near-gulf' || pos.zone === 'gulf') {
+                    speed = 12 + Math.random() * 8; // 12-20 knots approaching
                 } else {
-                    speed = 10 + Math.random() * 8; // 10-18 knots in open water
+                    speed = 10 + Math.random() * 8; // 10-18 knots in bay/other
                 }
                 
                 const vesselType = vesselTypes[Math.floor(Math.random() * vesselTypes.length)];
@@ -657,6 +740,77 @@
             
             document.getElementById('shipCount').textContent = count;
             setStatus(`Updated: ${new Date().toLocaleTimeString()}`, 'success');
+            
+            // Update forecast panel with ship data
+            updateForecastPanel(vessels);
+        }
+
+        // Update the 72-hour forecast panel
+        function updateForecastPanel(vessels) {
+            if (!vessels || vessels.length === 0) {
+                document.getElementById('forecastContent').innerHTML = 
+                    '<div style="color:#718096; font-style:italic;">No vessels to forecast</div>';
+                return;
+            }
+            
+            // Normalize vessel data for forecasting
+            const normalizedVessels = vessels.map(v => ({
+                name: v.name || v.properties?.name || `Vessel ${v.mmsi}`,
+                lat: v.lat || v.geometry?.coordinates?.[1] || v.properties?.latitude,
+                lon: v.lng || v.geometry?.coordinates?.[0] || v.properties?.longitude,
+                speed: v.speed || v.properties?.sog || 10
+            })).filter(v => v.lat && v.lon);
+            
+            // Get forecast from ShipForecasting module
+            const summary = ShipForecasting.getSummary(normalizedVessels);
+            const forecast = summary.forecast;
+            
+            // Build forecast HTML
+            let html = '';
+            
+            // 0-24h window
+            const w24 = forecast.windows["0-24h"];
+            html += `<div class="forecast-window urgent">
+                <span class="window-label">⏰ Next 24h</span>
+                <span class="ship-count">${w24.count} ships</span>
+                <span class="surge ${w24.congestionLevel === 'high' ? 'surge-high' : w24.congestionLevel === 'moderate' ? 'surge-moderate' : 'surge-normal'}">
+                    ${w24.congestionAlert}
+                </span>
+            </div>`;
+            
+            // 24-48h window
+            const w48 = forecast.windows["24-48h"];
+            html += `<div class="forecast-window soon">
+                <span class="window-label">📅 24-48h</span>
+                <span class="ship-count">${w48.count} ships</span>
+                <span class="surge ${w48.congestionLevel === 'high' ? 'surge-high' : w48.congestionLevel === 'moderate' ? 'surge-moderate' : 'surge-normal'}">
+                    ${w48.congestionAlert}
+                </span>
+            </div>`;
+            
+            // 48-72h window
+            const w72 = forecast.windows["48-72h"];
+            html += `<div class="forecast-window upcoming">
+                <span class="window-label">🔮 48-72h</span>
+                <span class="ship-count">${w72.count} ships</span>
+                <span class="surge ${w72.congestionLevel === 'high' ? 'surge-high' : w72.congestionLevel === 'moderate' ? 'surge-moderate' : 'surge-normal'}">
+                    ${w72.congestionAlert}
+                </span>
+            </div>`;
+            
+            document.getElementById('forecastContent').innerHTML = html;
+            
+            // Update stats
+            let statsHtml = `
+                <div><strong>Avg arrival gap:</strong> ${summary.avgArrivalGap}</div>
+                <div><strong>Est. arrivals/day:</strong> ${summary.arrivalsPerDay}</div>
+            `;
+            if (summary.closestShips) {
+                statsHtml += `<div><strong>Closest ships:</strong> ${summary.closestShips.distance} nm apart</div>`;
+            }
+            statsHtml += `<div style="margin-top:4px; font-size:10px; color:#a0aec0;">Updated: ${forecast.generatedAt}</div>`;
+            
+            document.getElementById('forecastStats').innerHTML = statsHtml;
         }
 
         // Clear ships from map
