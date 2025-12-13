@@ -124,6 +124,42 @@
         .owner-up { background: #fef3c7; color: #92400e; }
         .owner-bnsf { background: #ffedd5; color: #9a3412; }
         .owner-other { background: #e5e7eb; color: #374151; }
+        
+        /* Rail node styles */
+        .node-marker {
+            background: #7c3aed;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .node-station {
+            background: #dc2626;
+            border: 2px solid white;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        }
+        .node-boundary {
+            background: #0891b2;
+            border: 2px solid white;
+            border-radius: 50%;
+        }
+        .node-popup { min-width: 160px; }
+        .node-popup h4 { margin: 0 0 6px 0; color: #1a365d; font-size: 13px; }
+        .node-popup .detail { font-size: 11px; margin: 3px 0; color: #4a5568; }
+        .node-type-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .badge-station { background: #fee2e2; color: #991b1b; }
+        .badge-junction { background: #f3e8ff; color: #6b21a8; }
+        .badge-boundary { background: #cffafe; color: #0e7490; }
+        .legend-node { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; border: 1px solid white; }
+        .node-junction-color { background: #7c3aed; }
+        .node-station-color { background: #dc2626; }
     </style>
 </head>
 <body>
@@ -138,14 +174,21 @@
         </div>
         <div class="rail-toggle">
             <label><input type="checkbox" id="toggleRail" checked onchange="toggleRailLayer()"> Show Rail Lines</label>
+            <label><input type="checkbox" id="toggleNodes" onchange="toggleNodeLayer()"> Show Rail Nodes</label>
             <label><input type="checkbox" id="toggleUP" checked onchange="filterRailByOwner()"> Union Pacific (UP)</label>
             <label><input type="checkbox" id="toggleBNSF" checked onchange="filterRailByOwner()"> BNSF Railway</label>
             <label><input type="checkbox" id="toggleOther" checked onchange="filterRailByOwner()"> Other Railroads</label>
+        </div>
+        <div class="rail-stats" style="margin-top:8px;">
+            <div><strong>Rail Nodes:</strong> <span id="nodeCount">0</span></div>
+            <div><strong>Stations:</strong> <span id="stationCount">0</span></div>
         </div>
         <div class="legend" style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">
             <div class="legend-item"><span class="legend-line rail-up"></span> Union Pacific</div>
             <div class="legend-item"><span class="legend-line rail-bnsf"></span> BNSF Railway</div>
             <div class="legend-item"><span class="legend-line rail-other"></span> Other (USG, TCT, etc.)</div>
+            <div class="legend-item"><span class="legend-node node-junction-color"></span> Junction Node</div>
+            <div class="legend-item"><span class="legend-node node-station-color"></span> Passenger Station</div>
         </div>
     </div>
     
@@ -193,9 +236,11 @@
         const facilitiesLayer = L.layerGroup().addTo(map);
         const shipsLayer = L.layerGroup().addTo(map);
         const railLayer = L.layerGroup().addTo(map);
+        const nodesLayer = L.layerGroup(); // Not added by default (too many nodes)
         
         // Rail data storage
         let railSegments = [];
+        let railNodes = [];
         
         // Auto-refresh state
         let autoRefreshInterval = null;
@@ -775,6 +820,159 @@
         function filterRailByOwner() {
             drawRailNetwork();
         }
+        
+        // ========== RAIL NODES VISUALIZATION ==========
+        
+        // Load rail nodes from CSV file
+        async function loadRailNodes() {
+            try {
+                const response = await fetch('railroad-nodes.csv');
+                const csvText = await response.text();
+                const lines = csvText.trim().split('\n');
+                
+                // Skip header
+                railNodes = [];
+                let stationCount = 0;
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = lines[i].split(',');
+                    if (cols.length < 13) continue;
+                    
+                    const x = parseFloat(cols[11]); // longitude
+                    const y = parseFloat(cols[12]); // latitude
+                    
+                    // Filter to Houston/Galveston area
+                    if (x < -96 || x > -94 || y < 29 || y > 30.5) continue;
+                    
+                    const node = {
+                        objectId: cols[0],
+                        fraNodeId: cols[1],
+                        state: cols[3],
+                        countyFips: cols[5],
+                        stCountyFips: cols[6],
+                        fraDistrict: cols[7],
+                        passenger: cols[8],
+                        stationName: cols[9],
+                        boundary: parseInt(cols[10]) || 0,
+                        lng: x,
+                        lat: y
+                    };
+                    
+                    railNodes.push(node);
+                    if (node.stationName) stationCount++;
+                }
+                
+                console.log(`Loaded ${railNodes.length} rail nodes, ${stationCount} stations`);
+                document.getElementById('nodeCount').textContent = railNodes.length.toLocaleString();
+                document.getElementById('stationCount').textContent = stationCount;
+                
+                return railNodes;
+            } catch (error) {
+                console.error('Error loading rail nodes:', error);
+                return [];
+            }
+        }
+        
+        // Draw rail nodes on map
+        function drawRailNodes() {
+            nodesLayer.clearLayers();
+            
+            // Get current zoom level to adjust visibility
+            const zoom = map.getZoom();
+            
+            // Only show nodes when zoomed in enough (too many otherwise)
+            if (zoom < 11) {
+                // At low zoom, just show stations
+                railNodes.filter(n => n.stationName).forEach(node => {
+                    addNodeMarker(node, true);
+                });
+            } else if (zoom < 13) {
+                // Medium zoom: show stations + sample of junctions
+                railNodes.forEach((node, i) => {
+                    if (node.stationName || node.boundary > 0 || i % 10 === 0) {
+                        addNodeMarker(node, node.stationName);
+                    }
+                });
+            } else {
+                // High zoom: show all nodes
+                railNodes.forEach(node => {
+                    addNodeMarker(node, node.stationName);
+                });
+            }
+        }
+        
+        // Add a single node marker
+        function addNodeMarker(node, isStation) {
+            let className, radius, color;
+            
+            if (node.stationName) {
+                className = 'node-station';
+                radius = 8;
+                color = '#dc2626';
+            } else if (node.boundary > 0) {
+                className = 'node-boundary';
+                radius = 5;
+                color = '#0891b2';
+            } else {
+                className = 'node-marker';
+                radius = 4;
+                color = '#7c3aed';
+            }
+            
+            const marker = L.circleMarker([node.lat, node.lng], {
+                radius: radius,
+                fillColor: color,
+                color: '#fff',
+                weight: 1.5,
+                fillOpacity: 0.8,
+                className: className
+            }).addTo(nodesLayer);
+            
+            // Create popup content
+            let nodeType = 'Junction';
+            let badgeClass = 'badge-junction';
+            if (node.stationName) {
+                nodeType = 'Passenger Station';
+                badgeClass = 'badge-station';
+            } else if (node.boundary > 0) {
+                nodeType = 'Boundary Point';
+                badgeClass = 'badge-boundary';
+            }
+            
+            marker.bindPopup(`
+                <div class="node-popup">
+                    <span class="node-type-badge ${badgeClass}">${nodeType}</span>
+                    <h4>${node.stationName || 'Rail Junction'}</h4>
+                    <div class="detail"><strong>Node ID:</strong> ${node.fraNodeId}</div>
+                    <div class="detail"><strong>County FIPS:</strong> ${node.stCountyFips}</div>
+                    <div class="detail"><strong>FRA District:</strong> ${node.fraDistrict}</div>
+                    <div class="detail"><strong>Coords:</strong> ${node.lat.toFixed(4)}, ${node.lng.toFixed(4)}</div>
+                    ${node.passenger ? `<div class="detail"><strong>Service:</strong> ${node.passenger}</div>` : ''}
+                </div>
+            `);
+        }
+        
+        // Toggle node layer visibility
+        function toggleNodeLayer() {
+            const show = document.getElementById('toggleNodes').checked;
+            if (show) {
+                map.addLayer(nodesLayer);
+                if (railNodes.length === 0) {
+                    loadRailNodes().then(() => drawRailNodes());
+                } else {
+                    drawRailNodes();
+                }
+            } else {
+                map.removeLayer(nodesLayer);
+            }
+        }
+        
+        // Redraw nodes on zoom change
+        map.on('zoomend', function() {
+            if (document.getElementById('toggleNodes').checked) {
+                drawRailNodes();
+            }
+        });
         
         // Initialize rail network
         drawRailNetwork();
