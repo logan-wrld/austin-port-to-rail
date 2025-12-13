@@ -88,3 +88,14 @@ Did they push the boundaries?
 
 10 pts - Performance: Did they optimize the system for speed or scale? (e.g., "We optimized the simulation to run at 50x real-time speed").
 
+
+
+Steps to run:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate 
+pip install -r requirements.txt
+python indexing.py # index the db and put all the data in chroma, RUN ONCE  
+python query.py # run the model with the data
+```
