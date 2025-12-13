@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Port of Houston Map - AIS Tracking</title>
+    <title>Port of Houston Map - Houston & Galveston Area</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -200,21 +200,245 @@
         .legend-node { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; border: 1px solid white; }
         .node-junction-color { background: #7c3aed; }
         .node-station-color { background: #dc2626; }
+        
+        /* Weather panel styles */
+        .weather-panel {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 320px;
+            max-height: 85vh;
+            overflow-y: auto;
+        }
+        .weather-panel h3 { font-size: 16px; margin-bottom: 10px; color: #1a365d; }
+        .weather-current {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+        .weather-current .temp {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 8px 0;
+        }
+        .weather-current .description {
+            font-size: 14px;
+            text-transform: capitalize;
+            margin-bottom: 8px;
+        }
+        .weather-current .details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            margin-top: 8px;
+            opacity: 0.9;
+        }
+        .weather-forecast {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+        }
+        .weather-forecast h4 {
+            font-size: 13px;
+            margin-bottom: 8px;
+            color: #1a365d;
+        }
+        .forecast-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin: 4px 0;
+            background: #f7fafc;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .forecast-item .forecast-day {
+            font-weight: 600;
+            color: #2d3748;
+            min-width: 80px;
+        }
+        .forecast-item .forecast-temp {
+            color: #4a5568;
+            font-weight: 500;
+        }
+        .forecast-item .forecast-icon {
+            font-size: 18px;
+        }
+        .weather-icon {
+            font-size: 48px;
+            text-align: center;
+            margin: 8px 0;
+        }
+        .weather-loading {
+            text-align: center;
+            padding: 20px;
+            color: #718096;
+            font-size: 12px;
+        }
+        .weather-error {
+            text-align: center;
+            padding: 20px;
+            color: #e53e3e;
+            font-size: 12px;
+        }
+        .weather-refresh-btn {
+            margin-top: 8px;
+            width: 100%;
+        }
+        .weather-overlay-toggle {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f7fafc;
+            border-radius: 4px;
+            font-size: 11px;
+        }
+        .weather-overlay-toggle label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin: 4px 0;
+        }
+        .weather-overlay-toggle input {
+            margin-right: 8px;
+        }
+        
+        /* Forecast Popup */
+        .forecast-popup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 2000;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+            display: none;
+        }
+        .forecast-popup.show {
+            display: block;
+        }
+        .forecast-popup h3 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #1a365d;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .forecast-popup .close-btn {
+            background: #e53e3e;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 12px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .forecast-popup .close-btn:hover {
+            background: #c53030;
+        }
+        .forecast-popup-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 15px;
+        }
+        .forecast-popup-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .forecast-popup-item .day {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        .forecast-popup-item .icon {
+            font-size: 32px;
+            margin: 8px 0;
+        }
+        .forecast-popup-item .temp {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 4px 0;
+        }
+        .forecast-popup-item .desc {
+            font-size: 11px;
+            opacity: 0.9;
+            text-transform: capitalize;
+            margin-top: 4px;
+        }
+        .forecast-popup-item .details {
+            font-size: 10px;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255,255,255,0.3);
+            opacity: 0.85;
+        }
+        .popup-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1999;
+            display: none;
+        }
+        .popup-overlay.show {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
     
-    <!-- Rail Network Panel -->
+    <!-- Forecast Popup Overlay -->
+    <div class="popup-overlay" id="forecastOverlay" onclick="closeForecastPopup()"></div>
+    <div class="forecast-popup" id="forecastPopup">
+        <h3>
+            <span>📅 5-Day Weather Forecast</span>
+            <button class="close-btn" onclick="closeForecastPopup()">✕ Close</button>
+        </h3>
+        <div id="forecastPopupContent">
+            <div class="weather-loading">Loading forecast...</div>
+        </div>
+    </div>
+    
+    <!-- Weather Panel -->
+    <div class="weather-panel">
+        <h3>🌤️ Weather</h3>
+        <div id="weatherContent">
+            <div class="weather-loading">Loading weather data...</div>
+        </div>
+        <button class="btn weather-refresh-btn" onclick="loadWeatherData()">🔄 Refresh Weather</button>
+    </div>
+    
+    <!-- Map Controls Panel -->
     <div class="rail-panel">
-        <h3>🚂 Rail Network</h3>
+        <h3>🗺️ Map Controls</h3>
         <div class="rail-stats">
             <div><strong>Total Segments:</strong> <span id="railCount">0</span></div>
             <div><strong>Total Miles:</strong> <span id="railMiles">0</span></div>
         </div>
         <div class="rail-toggle">
-            <label><input type="checkbox" id="toggleRail" checked onchange="toggleRailLayer()"> Show Rail Lines</label>
-            <label><input type="checkbox" id="toggleNodes" onchange="toggleNodeLayer()"> Show Rail Nodes</label>
+            <label><input type="checkbox" id="toggleRainOverlay" onchange="toggleRainOverlay()"> 🌧️ Show Rain Overlay</label>
+            <label><input type="checkbox" id="toggleRail" checked onchange="toggleRailLayer()"> 🚂 Show Rail Lines</label>
+            <label><input type="checkbox" id="toggleNodes" onchange="toggleNodeLayer()"> 🚉 Show Rail Nodes</label>
             <label><input type="checkbox" id="toggleUP" checked onchange="filterRailByOwner()"> Union Pacific (UP)</label>
             <label><input type="checkbox" id="toggleBNSF" checked onchange="filterRailByOwner()"> BNSF Railway</label>
             <label><input type="checkbox" id="toggleOther" checked onchange="filterRailByOwner()"> Other Railroads</label>
@@ -274,8 +498,15 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="js/ship-forecasting.js"></script>
     <script>
-        // Initialize map centered on Port of Houston / Galveston Bay
-        const map = L.map('map').setView([28.8, -94.5], 8);
+        // Initialize map centered on Port of Houston / Galveston Bay area
+        const map = L.map('map', {
+            minZoom: 10,
+            maxBounds: [
+                [29.2, -95.5],  // Southwest corner
+                [30.0, -94.5]    // Northeast corner
+            ],
+            maxBoundsViscosity: 1.0  // Prevent panning outside bounds
+        }).setView([29.6, -94.85], 11);
 
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -288,15 +519,28 @@
         const railLayer = L.layerGroup().addTo(map);
         const nodesLayer = L.layerGroup(); // Not added by default (too many nodes)
         
+        // Rain/precipitation overlay layer
+        let rainOverlayLayer = null;
+        
+        // Store forecast data for popup
+        let storedForecastData = null;
+        
         // Rail data storage
         let railSegments = [];
         let railNodes = [];
+        let nodeMap = new Map(); // Map of nodeId -> {lat, lng}
         
         // Auto-refresh state
         let autoRefreshInterval = null;
         let isAutoRefreshing = false;
+        
+        // Weather API configuration
+        // Get free API key at https://openweathermap.org/api
+        const WEATHER_API_KEY = ''; // Add your OpenWeatherMap API key here
+        const WEATHER_LAT = 29.6;   // Houston/Galveston area latitude
+        const WEATHER_LON = -94.85; // Houston/Galveston area longitude
 
-        // Port facilities data
+        // Port facilities data - Houston and Galveston area
         const facilities = [
             { name: "Barbours Cut Container Terminal", lat: 29.7234, lng: -95.0012, type: "terminal", desc: "Major container terminal" },
             { name: "Bayport Container Terminal", lat: 29.6234, lng: -94.9912, type: "terminal", desc: "Modern container facility" },
@@ -329,15 +573,11 @@
             marker.bindPopup(`<strong>${f.name}</strong><br>${f.desc}`);
         });
 
-        // Draw Houston Ship Channel (extended to Gulf approach)
+        // Draw Houston Ship Channel (from Galveston Bay to Turning Basin)
         const channelPath = [
-            [29.0, -94.4],        // Gulf of Mexico approach
-            [29.1, -94.5],
-            [29.2, -94.6],
-            [29.3108, -94.7872],  // Galveston
-            [29.35, -94.82],
+            [29.35, -94.82],      // Galveston Bay entrance
             [29.55, -94.92],
-            [29.68, -94.98],
+            [29.68, -94.98],      // Morgan's Point area
             [29.7234, -95.0012],  // Barbours Cut
             [29.7355, -95.0555],
             [29.7355, -95.1555],
@@ -417,11 +657,11 @@
             
             try {
                 // Bounding box for Galveston Bay / Houston Ship Channel area
-                // Extended far into Gulf of Mexico to capture approaching vessels (100+ nm out)
-                const minLat = 27.5;  // ~150nm south into Gulf
-                const maxLat = 30.0;
-                const minLon = -96.0;
-                const maxLon = -93.0;  // Extended east into Gulf
+                // Extended further into Gulf of Mexico to capture approaching vessels
+                const minLat = 28.8;
+                const maxLat = 29.9;
+                const minLon = -95.4;
+                const maxLon = -94.0;
                 
                 // Try ArcGIS Maritime service
                 const response = await fetch(
@@ -483,10 +723,10 @@
             aisSocket = new WebSocket('wss://stream.aisstream.io/v0/stream');
             
             aisSocket.onopen = () => {
-                // Subscribe to Houston Ship Channel area (extended far into Gulf - 100+ nm)
+                // Subscribe to Houston Ship Channel area (extended into Gulf)
                 const subscribeMsg = {
                     APIKey: AIS_API_KEY,
-                    BoundingBoxes: [[[-96.0, 27.5], [-93.0, 30.0]]]
+                    BoundingBoxes: [[[-95.4, 28.8], [-94.0, 29.9]]]
                 };
                 aisSocket.send(JSON.stringify(subscribeMsg));
                 setStatus('Connected to live AIS stream', 'success');
@@ -557,21 +797,9 @@
             const numVessels = 28 + Math.floor(Math.random() * 12); // More vessels for extended range
             
             // Define realistic ship positions along the actual shipping lanes
-            // Extended far into Gulf of Mexico for approaching vessels (100+ nm out)
+            // Extended further into Gulf of Mexico for approaching vessels
             const shipPositions = [
-                // Deep Gulf of Mexico - ships 80-120nm out (48-72 hour ETA)
-                { lat: 27.8, lng: -93.5, heading: 315, zone: 'deep-gulf' },
-                { lat: 27.9, lng: -93.8, heading: 320, zone: 'deep-gulf' },
-                { lat: 28.0, lng: -94.0, heading: 325, zone: 'deep-gulf' },
-                { lat: 28.1, lng: -93.6, heading: 318, zone: 'deep-gulf' },
-                // Mid Gulf - ships 50-80nm out (24-48 hour ETA)
-                { lat: 28.3, lng: -94.0, heading: 330, zone: 'mid-gulf' },
-                { lat: 28.4, lng: -94.2, heading: 328, zone: 'mid-gulf' },
-                { lat: 28.5, lng: -93.9, heading: 332, zone: 'mid-gulf' },
-                { lat: 28.55, lng: -94.1, heading: 335, zone: 'mid-gulf' },
-                // Near Gulf - ships 20-50nm out (12-24 hour ETA)
-                { lat: 28.7, lng: -94.2, heading: 338, zone: 'near-gulf' },
-                { lat: 28.8, lng: -94.3, heading: 340, zone: 'near-gulf' },
+                // Gulf of Mexico - ships approaching from open water
                 { lat: 28.95, lng: -94.35, heading: 340, zone: 'gulf' },
                 { lat: 29.02, lng: -94.42, heading: 335, zone: 'gulf' },
                 { lat: 29.08, lng: -94.48, heading: 332, zone: 'gulf' },
@@ -583,20 +811,24 @@
                 { lat: 29.36, lng: -94.76, heading: 325, zone: 'approach' },
                 { lat: 29.40, lng: -94.78, heading: 320, zone: 'bay' },
                 // Galveston Bay - ships transiting
+                { lat: 29.40, lng: -94.78, heading: 320, zone: 'bay' },
                 { lat: 29.45, lng: -94.82, heading: 315, zone: 'bay' },
                 { lat: 29.50, lng: -94.86, heading: 310, zone: 'bay' },
                 { lat: 29.53, lng: -94.88, heading: 305, zone: 'bay' },
-                // Entering Houston Ship Channel
+                // Entering Houston Ship Channel from Morgan's Point
                 { lat: 29.58, lng: -94.91, heading: 300, zone: 'channel' },
                 { lat: 29.62, lng: -94.94, heading: 295, zone: 'channel' },
                 { lat: 29.66, lng: -94.97, heading: 290, zone: 'channel' },
-                // Mid channel near Bayport
+                { lat: 29.68, lng: -94.98, heading: 290, zone: 'channel' },
                 { lat: 29.69, lng: -95.00, heading: 285, zone: 'channel' },
+                // Mid channel near Bayport
                 { lat: 29.71, lng: -95.02, heading: 280, zone: 'channel' },
                 { lat: 29.72, lng: -95.05, heading: 275, zone: 'channel' },
-                // Near Morgan's Point
-                { lat: 29.73, lng: -95.08, heading: 270, zone: 'channel' },
+                { lat: 29.72, lng: -95.08, heading: 270, zone: 'channel' },
+                // Near Jacintoport
+                { lat: 29.73, lng: -95.10, heading: 270, zone: 'channel' },
                 { lat: 29.73, lng: -95.12, heading: 268, zone: 'channel' },
+                { lat: 29.73, lng: -95.15, heading: 265, zone: 'channel' },
                 // Approaching Turning Basin
                 { lat: 29.74, lng: -95.18, heading: 265, zone: 'upper' },
                 { lat: 29.74, lng: -95.22, heading: 260, zone: 'upper' },
@@ -605,6 +837,7 @@
                 { lat: 29.72, lng: -95.00, heading: 45, zone: 'terminal', speed: 0 },
                 { lat: 29.62, lng: -94.99, heading: 90, zone: 'terminal', speed: 0 },
                 { lat: 29.74, lng: -95.27, heading: 180, zone: 'terminal', speed: 0.5 },
+                { lat: 29.31, lng: -94.79, heading: 90, zone: 'terminal', speed: 0 }, // Galveston
             ];
             
             for (let i = 0; i < Math.min(numVessels, shipPositions.length + 5); i++) {
@@ -619,30 +852,13 @@
                         heading: pos.heading + (Math.random() - 0.5) * 15
                     };
                 } else {
-                    // Extra random ships - distributed across Gulf zones
-                    const zoneRoll = Math.random();
-                    if (zoneRoll < 0.3) {
-                        // Deep Gulf (80-120nm out)
+                    // Extra random ships - some in bay, some in Gulf approach
+                    const inGulf = Math.random() > 0.5;
+                    if (inGulf) {
                         pos = {
-                            lat: 27.7 + Math.random() * 0.5,
-                            lng: -93.3 - Math.random() * 0.8,
-                            heading: 310 + Math.random() * 30,
-                            zone: 'deep-gulf'
-                        };
-                    } else if (zoneRoll < 0.6) {
-                        // Mid Gulf (50-80nm out)
-                        pos = {
-                            lat: 28.2 + Math.random() * 0.4,
-                            lng: -93.8 - Math.random() * 0.5,
-                            heading: 320 + Math.random() * 30,
-                            zone: 'mid-gulf'
-                        };
-                    } else if (zoneRoll < 0.85) {
-                        // Near Gulf approach
-                        pos = {
-                            lat: 28.7 + Math.random() * 0.4,
-                            lng: -94.2 + (Math.random() - 0.5) * 0.4,
-                            heading: 330 + Math.random() * 25,
+                            lat: 29.0 + Math.random() * 0.25,
+                            lng: -94.3 + (Math.random() - 0.5) * 0.3,
+                            heading: 320 + Math.random() * 40,
                             zone: 'gulf'
                         };
                     } else {
@@ -651,6 +867,13 @@
                             lng: -94.85 + (Math.random() - 0.5) * 0.2,
                             heading: 300 + Math.random() * 60,
                             zone: 'bay'
+                        };
+                    } else {
+                        pos = {
+                            lat: 29.68 + Math.random() * 0.08,
+                            lng: -95.00 + (Math.random() - 0.5) * 0.3,
+                            heading: 260 + Math.random() * 40,
+                            zone: 'channel'
                         };
                     }
                 }
@@ -663,14 +886,10 @@
                     speed = Math.random() * 1;
                 } else if (pos.zone === 'channel' || pos.zone === 'upper') {
                     speed = 6 + Math.random() * 6; // 6-12 knots in channel
-                } else if (pos.zone === 'deep-gulf') {
-                    speed = 14 + Math.random() * 8; // 14-22 knots in deep Gulf (full speed)
-                } else if (pos.zone === 'mid-gulf') {
-                    speed = 13 + Math.random() * 7; // 13-20 knots in mid Gulf
-                } else if (pos.zone === 'near-gulf' || pos.zone === 'gulf') {
-                    speed = 12 + Math.random() * 8; // 12-20 knots approaching
+                } else if (pos.zone === 'gulf') {
+                    speed = 12 + Math.random() * 10; // 12-22 knots in Gulf
                 } else {
-                    speed = 10 + Math.random() * 8; // 10-18 knots in bay/other
+                    speed = 10 + Math.random() * 8; // 10-18 knots in open water
                 }
                 
                 const vesselType = vesselTypes[Math.floor(Math.random() * vesselTypes.length)];
@@ -840,42 +1059,6 @@
         }
 
         // ========== RAIL NETWORK DATA & VISUALIZATION ==========
-        
-        // Texas Rail Network Data (from FRA dataset)
-        // Key rail lines serving Port of Houston area
-        const railNetworkData = [
-            // Union Pacific - Houston Area
-            { owner: 'UP', subdiv: 'BAYTOWN', coords: [[29.7584, -95.0121], [29.7621, -94.9834], [29.7503, -94.9512]], miles: 0.31, tracks: 1 },
-            { owner: 'UP', subdiv: 'HOUSTON WEST BELT', coords: [[29.7486, -95.4501], [29.7501, -95.3869], [29.7624, -95.3012]], miles: 0.12, tracks: 1 },
-            { owner: 'UP', subdiv: 'BELL MAIN', coords: [[29.7624, -95.3636], [29.7634, -95.3257], [29.7638, -95.2824]], miles: 0.61, tracks: 2 },
-            { owner: 'UP', subdiv: 'STRANG', coords: [[29.7727, -95.1805], [29.7805, -95.1255], [29.7834, -95.0712]], miles: 0.53, tracks: 1 },
-            { owner: 'UP', subdiv: 'GLIDDEN', coords: [[29.7203, -95.3695], [29.7195, -95.4312], [29.7188, -95.4956]], miles: 0.32, tracks: 1 },
-            { owner: 'UP', subdiv: 'EUREKA', coords: [[29.7448, -95.3478], [29.7512, -95.2834], [29.7534, -95.2156]], miles: 0.73, tracks: 1 },
-            { owner: 'UP', subdiv: 'COLUMBIA TAP INDUSTRIAL LEAD', coords: [[29.7120, -95.3183], [29.6956, -95.2834], [29.6712, -95.2445]], miles: 0.66, tracks: 1 },
-            { owner: 'UP', subdiv: 'FREEPORT IND LEAD', coords: [[29.0490, -95.3508], [29.0562, -95.3074], [29.0684, -95.2647]], miles: 2.88, tracks: 1 },
-            { owner: 'UP', subdiv: 'BEAUMONT (UP)', coords: [[29.9201, -93.9776], [29.8834, -94.0956], [29.8445, -94.2134]], miles: 0.87, tracks: 1 },
-            { owner: 'UP', subdiv: 'GREAT SOUTHWEST LEAD', coords: [[32.7716, -97.0719], [32.7720, -97.0322], [32.7883, -96.9945]], miles: 5.12, tracks: 1 },
-            { owner: 'UP', subdiv: 'WACO', coords: [[31.5535, -97.1577], [31.5551, -97.1195], [31.5615, -97.0795]], miles: 4.32, tracks: 2 },
-            { owner: 'UP', subdiv: 'FORT WORTH', coords: [[32.7548, -97.3584], [32.7571, -97.3187], [32.7589, -97.2813]], miles: 1.16, tracks: 1 },
-            // BNSF Railway - Houston & Fort Worth
-            { owner: 'BNSF', subdiv: 'HOUSTON (BNSF)', coords: [[29.7678, -95.3088], [29.7688, -95.2701], [29.7712, -95.2234]], miles: 0.58, tracks: 1 },
-            { owner: 'BNSF', subdiv: 'FORT WORTH', coords: [[32.8716, -97.2719], [32.8720, -97.2522], [32.8734, -97.2312]], miles: 0.04, tracks: 2 },
-            // TCT - Texas City Terminal
-            { owner: 'TCT', subdiv: 'TEXAS CITY', coords: [[29.3604, -94.9634], [29.3797, -94.9255], [29.3994, -94.8839]], miles: 2.68, tracks: 2 },
-            { owner: 'TCT', subdiv: 'TEXAS CITY INDUSTRIAL', coords: [[29.3994, -94.8839], [29.4215, -94.8607], [29.4494, -94.8339]], miles: 0.94, tracks: 1 },
-            // USG - US Government (Lone Star Ordnance)
-            { owner: 'USG', subdiv: 'LONE STAR ORDNANCE', coords: [[33.4155, -94.5546], [33.4159, -94.5337], [33.4168, -94.5091]], miles: 5.82, tracks: 1 },
-            // Port-Rail Connections (key intermodal links)
-            { owner: 'UP', subdiv: 'BARBOURS CUT RAIL', coords: [[29.7234, -95.0012], [29.7312, -95.0156], [29.7456, -95.0334]], miles: 0.45, tracks: 2 },
-            { owner: 'UP', subdiv: 'BAYPORT RAIL', coords: [[29.6234, -94.9912], [29.6356, -95.0034], [29.6512, -95.0212]], miles: 0.38, tracks: 1 },
-            { owner: 'UP', subdiv: 'TURNING BASIN RAIL', coords: [[29.7355, -95.2755], [29.7412, -95.2612], [29.7534, -95.2434]], miles: 0.52, tracks: 2 },
-            // Additional Houston metro connections
-            { owner: 'UP', subdiv: 'GALENA PARK', coords: [[29.7356, -95.2155], [29.7423, -95.1912], [29.7512, -95.1634]], miles: 0.48, tracks: 1 },
-            { owner: 'BNSF', subdiv: 'PEARLAND', coords: [[29.5634, -95.2856], [29.5912, -95.3012], [29.6234, -95.3234]], miles: 0.62, tracks: 1 },
-            { owner: 'UP', subdiv: 'PASADENA', coords: [[29.6912, -95.1734], [29.7034, -95.1512], [29.7156, -95.1234]], miles: 0.55, tracks: 1 },
-            { owner: 'UP', subdiv: 'LA PORTE', coords: [[29.6656, -95.0534], [29.6834, -95.0312], [29.7012, -95.0134]], miles: 0.41, tracks: 1 },
-        ];
-        
         // Rail owner colors
         const railColors = {
             'UP': '#eab308',      // Yellow for Union Pacific
@@ -895,10 +1078,25 @@
             return 'owner-other';
         }
         
-        // Draw rail network
-        function drawRailNetwork() {
+        // Draw rail network dynamically from CSV data
+        async function drawRailNetwork() {
             railLayer.clearLayers();
             railSegments = [];
+            
+            // Ensure nodes are loaded first
+            if (nodeMap.size === 0) {
+                await loadRailNodes();
+            }
+            
+            // Load rail lines from CSV
+            const railLines = await loadRailLines();
+            
+            if (railLines.length === 0) {
+                console.warn('No rail lines loaded');
+                document.getElementById('railCount').textContent = '0';
+                document.getElementById('railMiles').textContent = '0';
+                return;
+            }
             
             const showUP = document.getElementById('toggleUP').checked;
             const showBNSF = document.getElementById('toggleBNSF').checked;
@@ -907,7 +1105,7 @@
             let totalMiles = 0;
             let segmentCount = 0;
             
-            railNetworkData.forEach(rail => {
+            railLines.forEach(rail => {
                 // Filter by owner
                 if (rail.owner === 'UP' && !showUP) return;
                 if (rail.owner === 'BNSF' && !showBNSF) return;
@@ -928,7 +1126,7 @@
                 line.bindPopup(`
                     <div class="rail-popup">
                         <span class="owner-badge ${getOwnerClass(rail.owner)}">${rail.owner}</span>
-                        <h4>🛤️ ${rail.subdiv}</h4>
+                        <h4>🛤️ ${rail.subdiv || 'Rail Segment'}</h4>
                         <div class="detail"><strong>Owner:</strong> ${getOwnerFullName(rail.owner)}</div>
                         <div class="detail"><strong>Miles:</strong> ${rail.miles.toFixed(2)}</div>
                         <div class="detail"><strong>Tracks:</strong> ${rail.tracks}</div>
@@ -960,24 +1158,24 @@
         }
         
         // Toggle rail layer visibility
-        function toggleRailLayer() {
+        async function toggleRailLayer() {
             const show = document.getElementById('toggleRail').checked;
             if (show) {
                 map.addLayer(railLayer);
-                drawRailNetwork();
+                await drawRailNetwork();
             } else {
                 map.removeLayer(railLayer);
             }
         }
         
         // Filter rail by owner
-        function filterRailByOwner() {
-            drawRailNetwork();
+        async function filterRailByOwner() {
+            await drawRailNetwork();
         }
         
         // ========== RAIL NODES VISUALIZATION ==========
         
-        // Load rail nodes from CSV file
+        // Load rail nodes from CSV file and build node map
         async function loadRailNodes() {
             try {
                 const response = await fetch('data/railroad-nodes.csv');
@@ -986,6 +1184,7 @@
                 
                 // Skip header
                 railNodes = [];
+                nodeMap.clear();
                 let stationCount = 0;
                 
                 for (let i = 1; i < lines.length; i++) {
@@ -996,11 +1195,12 @@
                     const y = parseFloat(cols[12]); // latitude
                     
                     // Filter to Houston/Galveston area
-                    if (x < -96 || x > -94 || y < 29 || y > 30.5) continue;
+                    if (x < -95.5 || x > -94.5 || y < 29.2 || y > 30.0) continue;
                     
+                    const nodeId = cols[1]; // FRANODEID
                     const node = {
                         objectId: cols[0],
-                        fraNodeId: cols[1],
+                        fraNodeId: nodeId,
                         state: cols[3],
                         countyFips: cols[5],
                         stCountyFips: cols[6],
@@ -1013,6 +1213,11 @@
                     };
                     
                     railNodes.push(node);
+                    // Store in map for quick lookup by node ID
+                    if (nodeId) {
+                        nodeMap.set(nodeId, { lat: y, lng: x });
+                    }
+                    
                     if (node.stationName) stationCount++;
                 }
                 
@@ -1023,6 +1228,110 @@
                 return railNodes;
             } catch (error) {
                 console.error('Error loading rail nodes:', error);
+                return [];
+            }
+        }
+        
+        // Simple CSV parser that handles quoted fields
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current);
+            return result;
+        }
+        
+        // Load rail lines from CSV file
+        async function loadRailLines() {
+            try {
+                const response = await fetch('data/railroad-lines.csv');
+                const csvText = await response.text();
+                const lines = csvText.trim().split('\n');
+                
+                if (lines.length < 2) return [];
+                
+                const railLines = [];
+                const header = parseCSVLine(lines[0]);
+                
+                // Find column indices
+                const getColIndex = (name) => {
+                    const idx = header.findIndex(h => h.trim() === name);
+                    return idx >= 0 ? idx : -1;
+                };
+                
+                const fromNodeIdx = getColIndex('FRFRANODE');
+                const toNodeIdx = getColIndex('TOFRANODE');
+                const ownerIdx = getColIndex('RROWNER1');
+                const subdivIdx = getColIndex('SUBDIV');
+                const tracksIdx = getColIndex('TRACKS');
+                const milesIdx = getColIndex('MILES');
+                
+                if (fromNodeIdx < 0 || toNodeIdx < 0) {
+                    console.error('Required columns not found in CSV');
+                    return [];
+                }
+                
+                // Houston/Galveston area bounds
+                const minLat = 29.2;
+                const maxLat = 30.0;
+                const minLng = -95.5;
+                const maxLng = -94.5;
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = parseCSVLine(lines[i]);
+                    if (cols.length < Math.max(fromNodeIdx, toNodeIdx, ownerIdx) + 1) continue;
+                    
+                    const fromNodeId = cols[fromNodeIdx]?.trim();
+                    const toNodeId = cols[toNodeIdx]?.trim();
+                    const owner = (ownerIdx >= 0 ? cols[ownerIdx]?.trim() : '') || '';
+                    const subdiv = (subdivIdx >= 0 ? cols[subdivIdx]?.trim() : '') || '';
+                    const tracks = (tracksIdx >= 0 ? parseInt(cols[tracksIdx]) : 1) || 1;
+                    const miles = (milesIdx >= 0 ? parseFloat(cols[milesIdx]) : 0) || 0;
+                    
+                    if (!fromNodeId || !toNodeId) continue;
+                    
+                    // Get coordinates from node map
+                    const fromNode = nodeMap.get(fromNodeId);
+                    const toNode = nodeMap.get(toNodeId);
+                    
+                    if (!fromNode || !toNode) continue;
+                    
+                    // Filter to Houston/Galveston area
+                    if (fromNode.lat < minLat || fromNode.lat > maxLat || 
+                        fromNode.lng < minLng || fromNode.lng > maxLng ||
+                        toNode.lat < minLat || toNode.lat > maxLat ||
+                        toNode.lng < minLng || toNode.lng > maxLng) {
+                        continue;
+                    }
+                    
+                    railLines.push({
+                        fromNodeId: fromNodeId,
+                        toNodeId: toNodeId,
+                        owner: owner,
+                        subdiv: subdiv,
+                        tracks: tracks,
+                        miles: miles,
+                        coords: [[fromNode.lat, fromNode.lng], [toNode.lat, toNode.lng]]
+                    });
+                }
+                
+                console.log(`Loaded ${railLines.length} rail line segments`);
+                return railLines;
+            } catch (error) {
+                console.error('Error loading rail lines:', error);
                 return [];
             }
         }
@@ -1141,11 +1450,302 @@
             }
         });
         
-        // Initialize rail network
-        drawRailNetwork();
+        // ========== WEATHER API INTEGRATION ==========
+        
+        // Get weather icon emoji based on condition code
+        function getWeatherIcon(code, isDay = true) {
+            // OpenWeatherMap weather condition codes
+            if (code >= 200 && code < 300) return '⛈️'; // Thunderstorm
+            if (code >= 300 && code < 400) return '🌧️'; // Drizzle
+            if (code >= 500 && code < 600) return '🌧️'; // Rain
+            if (code >= 600 && code < 700) return '❄️'; // Snow
+            if (code >= 700 && code < 800) return '🌫️'; // Atmosphere (fog, mist, etc.)
+            if (code === 800) return isDay ? '☀️' : '🌙'; // Clear
+            if (code === 801) return isDay ? '🌤️' : '☁️'; // Few clouds
+            if (code === 802) return '⛅'; // Scattered clouds
+            if (code === 803 || code === 804) return '☁️'; // Broken/Overcast clouds
+            return '🌤️';
+        }
+        
+        // Format temperature
+        function formatTemp(kelvin) {
+            const celsius = kelvin - 273.15;
+            const fahrenheit = (celsius * 9/5) + 32;
+            return {
+                f: Math.round(fahrenheit),
+                c: Math.round(celsius)
+            };
+        }
+        
+        // Format wind speed
+        function formatWindSpeed(ms) {
+            const mph = ms * 2.237;
+            return Math.round(mph);
+        }
+        
+        // Get day name
+        function getDayName(date) {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            return days[date.getDay()];
+        }
+        
+        // Load weather data
+        async function loadWeatherData() {
+            const weatherContent = document.getElementById('weatherContent');
+            
+            // If no API key, show demo data
+            if (!WEATHER_API_KEY) {
+                weatherContent.innerHTML = `
+                    <div class="weather-current">
+                        <div class="weather-icon">🌤️</div>
+                        <div class="temp">78°F</div>
+                        <div class="description">Partly Cloudy</div>
+                        <div class="details">
+                            <span>💨 Wind: 12 mph</span>
+                            <span>💧 Humidity: 65%</span>
+                        </div>
+                        <div class="details">
+                            <span>👁️ Visibility: 10 mi</span>
+                            <span>🌡️ Feels: 80°F</span>
+                        </div>
+                    </div>
+                    <div style="margin-top:8px; padding:8px; background:#fffbeb; border-radius:4px; font-size:10px; color:#92400e;">
+                        <strong>⚠️ Demo Mode:</strong> Add OpenWeatherMap API key for live data
+                    </div>
+                `;
+                
+                // Store demo forecast data for popup (temps in Kelvin for formatTemp function)
+                // Convert Fahrenheit to Kelvin: K = (F - 32) * 5/9 + 273.15
+                const fToK = (f) => (f - 32) * 5/9 + 273.15;
+                const demoForecastDays = [
+                    { date: new Date(), temps: [fToK(78), fToK(65)], conditions: [{ id: 801, description: 'partly cloudy' }] },
+                    { date: new Date(Date.now() + 86400000), temps: [fToK(82), fToK(68)], conditions: [{ id: 800, description: 'clear sky' }] },
+                    { date: new Date(Date.now() + 2*86400000), temps: [fToK(79), fToK(66)], conditions: [{ id: 802, description: 'scattered clouds' }] },
+                    { date: new Date(Date.now() + 3*86400000), temps: [fToK(75), fToK(64)], conditions: [{ id: 500, description: 'light rain' }] },
+                    { date: new Date(Date.now() + 4*86400000), temps: [fToK(81), fToK(67)], conditions: [{ id: 800, description: 'clear sky' }] }
+                ];
+                storedForecastData = {
+                    dailyForecast: {},
+                    forecastDays: demoForecastDays
+                };
+                
+                return;
+            }
+            
+            weatherContent.innerHTML = '<div class="weather-loading">Loading weather data...</div>';
+            
+            try {
+                // Fetch current weather and forecast
+                const currentUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${WEATHER_LAT}&lon=${WEATHER_LON}&appid=${WEATHER_API_KEY}`;
+                const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${WEATHER_LAT}&lon=${WEATHER_LON}&appid=${WEATHER_API_KEY}`;
+                
+                const [currentResponse, forecastResponse] = await Promise.all([
+                    fetch(currentUrl),
+                    fetch(forecastUrl)
+                ]);
+                
+                if (!currentResponse.ok || !forecastResponse.ok) {
+                    throw new Error('Weather API error');
+                }
+                
+                const currentData = await currentResponse.json();
+                const forecastData = await forecastResponse.json();
+                
+                // Format current weather
+                const temp = formatTemp(currentData.main.temp);
+                const feelsLike = formatTemp(currentData.main.feels_like);
+                const windSpeed = formatWindSpeed(currentData.wind.speed);
+                const isDay = currentData.dt > currentData.sys.sunrise && currentData.dt < currentData.sys.sunset;
+                const icon = getWeatherIcon(currentData.weather[0].id, isDay);
+                
+                // Build current weather HTML
+                let currentHtml = `
+                    <div class="weather-current">
+                        <div class="weather-icon">${icon}</div>
+                        <div class="temp">${temp.f}°F</div>
+                        <div class="description">${currentData.weather[0].description}</div>
+                        <div class="details">
+                            <span>💨 Wind: ${windSpeed} mph ${currentData.wind.deg ? `(${currentData.wind.deg}°)` : ''}</span>
+                            <span>💧 Humidity: ${currentData.main.humidity}%</span>
+                        </div>
+                        <div class="details">
+                            <span>👁️ Visibility: ${currentData.visibility ? (currentData.visibility / 1609.34).toFixed(1) : 'N/A'} mi</span>
+                            <span>🌡️ Feels: ${feelsLike.f}°F</span>
+                        </div>
+                        <div class="details" style="margin-top:4px;">
+                            <span>📊 Pressure: ${currentData.main.pressure} hPa</span>
+                            <span>☁️ Clouds: ${currentData.clouds.all}%</span>
+                        </div>
+                    </div>
+                `;
+                
+                // Group forecast by day and get max/min temps for popup
+                const dailyForecast = {};
+                forecastData.list.forEach(item => {
+                    const date = new Date(item.dt * 1000);
+                    const dayKey = date.toDateString();
+                    
+                    if (!dailyForecast[dayKey]) {
+                        dailyForecast[dayKey] = {
+                            date: date,
+                            temps: [],
+                            conditions: [],
+                            icons: []
+                        };
+                    }
+                    
+                    dailyForecast[dayKey].temps.push(item.main.temp_max, item.main.temp_min);
+                    dailyForecast[dayKey].conditions.push(item.weather[0]);
+                    dailyForecast[dayKey].icons.push(getWeatherIcon(item.weather[0].id, true));
+                });
+                
+                // Only show current weather in panel
+                weatherContent.innerHTML = currentHtml;
+                
+                // Store forecast data for popup
+                storedForecastData = {
+                    dailyForecast: dailyForecast,
+                    forecastDays: Object.values(dailyForecast).slice(0, 5)
+                };
+                
+            } catch (error) {
+                console.error('Weather API error:', error);
+                weatherContent.innerHTML = `
+                    <div class="weather-error">
+                        ⚠️ Unable to load weather data<br>
+                        <small>Check API key or network connection</small>
+                    </div>
+                `;
+            }
+        }
+        
+        // Toggle rain/precipitation overlay on map
+        function toggleRainOverlay() {
+            const checkbox = document.getElementById('toggleRainOverlay');
+            const show = checkbox.checked;
+            
+            if (show) {
+                // Remove existing overlay if any
+                if (rainOverlayLayer && map.hasLayer(rainOverlayLayer)) {
+                    map.removeLayer(rainOverlayLayer);
+                    rainOverlayLayer = null;
+                }
+                
+                // Create rain overlay layer
+                if (WEATHER_API_KEY) {
+                    // Use OpenWeatherMap precipitation layer (best quality, requires API key)
+                    rainOverlayLayer = L.tileLayer(`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${WEATHER_API_KEY}`, {
+                        attribution: 'Rain data © OpenWeatherMap',
+                        opacity: 0.65,
+                        maxZoom: 19
+                    });
+                } else {
+                    // Use RainViewer API (free, no key required)
+                    // Get latest available timestamp (rounded to nearest 10 minutes)
+                    const now = Math.floor(Date.now() / 1000);
+                    const roundedTime = Math.floor(now / 600) * 600; // Round to nearest 10 minutes
+                    
+                    rainOverlayLayer = L.tileLayer(`https://tilecache.rainviewer.com/v2/radar/${roundedTime}/256/{z}/{x}/{y}/2/1_1.png`, {
+                        attribution: 'Rain data © RainViewer.com',
+                        opacity: 0.7,
+                        maxZoom: 19,
+                        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+                    });
+                }
+                
+                // Add overlay to map
+                rainOverlayLayer.addTo(map);
+                
+                // Show forecast popup
+                showForecastPopup();
+            } else {
+                // Remove overlay from map
+                if (rainOverlayLayer && map.hasLayer(rainOverlayLayer)) {
+                    map.removeLayer(rainOverlayLayer);
+                }
+                
+                // Hide forecast popup
+                closeForecastPopup();
+            }
+        }
+        
+        // Show forecast popup
+        function showForecastPopup() {
+            const popup = document.getElementById('forecastPopup');
+            const overlay = document.getElementById('forecastOverlay');
+            const content = document.getElementById('forecastPopupContent');
+            
+            // Generate forecast content
+            if (storedForecastData && storedForecastData.forecastDays) {
+                let popupHtml = '<div class="forecast-popup-grid">';
+                
+                storedForecastData.forecastDays.forEach((day, index) => {
+                    const maxTemp = formatTemp(Math.max(...day.temps));
+                    const minTemp = formatTemp(Math.min(...day.temps));
+                    const mainCondition = day.conditions[Math.floor(day.conditions.length / 2)];
+                    const mainIcon = getWeatherIcon(mainCondition.id, true);
+                    
+                    let dayLabel;
+                    if (index === 0) {
+                        dayLabel = 'Today';
+                    } else if (index === 1) {
+                        dayLabel = 'Tomorrow';
+                    } else {
+                        dayLabel = getDayName(day.date);
+                    }
+                    
+                    // Get additional details from forecast
+                    const avgHumidity = day.conditions.length > 0 ? 
+                        (day.conditions.reduce((sum, c) => sum + (c.humidity || 0), 0) / day.conditions.length).toFixed(0) : 'N/A';
+                    
+                    popupHtml += `
+                        <div class="forecast-popup-item">
+                            <div class="day">${dayLabel}</div>
+                            <div class="icon">${mainIcon}</div>
+                            <div class="temp">${maxTemp.f}° / ${minTemp.f}°</div>
+                            <div class="desc">${mainCondition.description}</div>
+                            <div class="details">
+                                ${day.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                popupHtml += '</div>';
+                content.innerHTML = popupHtml;
+            } else {
+                // No forecast data available - try to load it
+                content.innerHTML = '<div class="weather-loading">Loading forecast data...<br><small>Please wait or refresh weather data first</small></div>';
+                // Try to load weather data if not already loaded
+                if (!storedForecastData) {
+                    loadWeatherData().then(() => {
+                        // Retry showing popup after data loads
+                        setTimeout(showForecastPopup, 500);
+                    });
+                }
+            }
+            
+            // Show popup and overlay
+            popup.classList.add('show');
+            overlay.classList.add('show');
+        }
+        
+        // Close forecast popup
+        function closeForecastPopup() {
+            const popup = document.getElementById('forecastPopup');
+            const overlay = document.getElementById('forecastOverlay');
+            popup.classList.remove('show');
+            overlay.classList.remove('show');
+        }
+        
+        // Initialize rail network (async - loads from CSV)
+        loadRailNodes().then(() => {
+            drawRailNetwork();
+        });
         
         // Load initial data
         loadAISData();
+        loadWeatherData();
     </script>
 </body>
 </html>
