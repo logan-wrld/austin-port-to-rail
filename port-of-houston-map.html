@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Port of Houston Map - AIS Tracking</title>
+    <title>Port of Houston Map - Houston & Galveston Area</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -224,8 +224,15 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // Initialize map centered on Port of Houston / Galveston Bay
-        const map = L.map('map').setView([29.6, -94.85], 10);
+        // Initialize map centered on Port of Houston / Galveston Bay area
+        const map = L.map('map', {
+            minZoom: 10,
+            maxBounds: [
+                [29.2, -95.5],  // Southwest corner
+                [30.0, -94.5]    // Northeast corner
+            ],
+            maxBoundsViscosity: 1.0  // Prevent panning outside bounds
+        }).setView([29.6, -94.85], 11);
 
         // Add OpenStreetMap tiles
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -246,7 +253,7 @@
         let autoRefreshInterval = null;
         let isAutoRefreshing = false;
 
-        // Port facilities data
+        // Port facilities data - Houston and Galveston area
         const facilities = [
             { name: "Barbours Cut Container Terminal", lat: 29.7234, lng: -95.0012, type: "terminal", desc: "Major container terminal" },
             { name: "Bayport Container Terminal", lat: 29.6234, lng: -94.9912, type: "terminal", desc: "Modern container facility" },
@@ -279,15 +286,11 @@
             marker.bindPopup(`<strong>${f.name}</strong><br>${f.desc}`);
         });
 
-        // Draw Houston Ship Channel (extended to Gulf approach)
+        // Draw Houston Ship Channel (from Galveston Bay to Turning Basin)
         const channelPath = [
-            [29.0, -94.4],        // Gulf of Mexico approach
-            [29.1, -94.5],
-            [29.2, -94.6],
-            [29.3108, -94.7872],  // Galveston
-            [29.35, -94.82],
+            [29.35, -94.82],      // Galveston Bay entrance
             [29.55, -94.92],
-            [29.68, -94.98],
+            [29.68, -94.98],      // Morgan's Point area
             [29.7234, -95.0012],  // Barbours Cut
             [29.7355, -95.0555],
             [29.7355, -95.1555],
@@ -366,12 +369,11 @@
             }
             
             try {
-                // Bounding box for Galveston Bay / Houston Ship Channel area
-                // Extended further into Gulf of Mexico to capture approaching vessels
-                const minLat = 28.8;
+                // Bounding box for Houston/Galveston area
+                const minLat = 29.2;
                 const maxLat = 29.9;
                 const minLon = -95.4;
-                const maxLon = -94.0;
+                const maxLon = -94.7;
                 
                 // Try ArcGIS Maritime service
                 const response = await fetch(
@@ -433,10 +435,10 @@
             aisSocket = new WebSocket('wss://stream.aisstream.io/v0/stream');
             
             aisSocket.onopen = () => {
-                // Subscribe to Houston Ship Channel area (extended into Gulf)
+                // Subscribe to Houston/Galveston area
                 const subscribeMsg = {
                     APIKey: AIS_API_KEY,
-                    BoundingBoxes: [[[-95.4, 28.8], [-94.0, 29.9]]]
+                    BoundingBoxes: [[[-95.4, 29.2], [-94.7, 29.9]]]
                 };
                 aisSocket.send(JSON.stringify(subscribeMsg));
                 setStatus('Connected to live AIS stream', 'success');
@@ -506,35 +508,27 @@
             const vessels = [];
             const numVessels = 18 + Math.floor(Math.random() * 8);
             
-            // Define realistic ship positions along the actual shipping lanes
-            // Extended further into Gulf of Mexico for approaching vessels
+            // Define realistic ship positions along the Houston Ship Channel and Galveston Bay
             const shipPositions = [
-                // Gulf of Mexico - ships approaching from open water
-                { lat: 28.95, lng: -94.35, heading: 340, zone: 'gulf' },
-                { lat: 29.02, lng: -94.42, heading: 335, zone: 'gulf' },
-                { lat: 29.08, lng: -94.48, heading: 332, zone: 'gulf' },
-                { lat: 29.15, lng: -94.55, heading: 330, zone: 'gulf' },
-                { lat: 29.22, lng: -94.62, heading: 328, zone: 'gulf' },
-                // Galveston Bay approach - ships entering
-                { lat: 29.28, lng: -94.68, heading: 330, zone: 'approach' },
-                { lat: 29.32, lng: -94.72, heading: 330, zone: 'approach' },
-                { lat: 29.36, lng: -94.76, heading: 325, zone: 'approach' },
-                { lat: 29.40, lng: -94.78, heading: 320, zone: 'bay' },
                 // Galveston Bay - ships transiting
+                { lat: 29.40, lng: -94.78, heading: 320, zone: 'bay' },
                 { lat: 29.45, lng: -94.82, heading: 315, zone: 'bay' },
                 { lat: 29.50, lng: -94.86, heading: 310, zone: 'bay' },
                 { lat: 29.53, lng: -94.88, heading: 305, zone: 'bay' },
-                // Entering Houston Ship Channel
+                // Entering Houston Ship Channel from Morgan's Point
                 { lat: 29.58, lng: -94.91, heading: 300, zone: 'channel' },
                 { lat: 29.62, lng: -94.94, heading: 295, zone: 'channel' },
                 { lat: 29.66, lng: -94.97, heading: 290, zone: 'channel' },
-                // Mid channel near Bayport
+                { lat: 29.68, lng: -94.98, heading: 290, zone: 'channel' },
                 { lat: 29.69, lng: -95.00, heading: 285, zone: 'channel' },
+                // Mid channel near Bayport
                 { lat: 29.71, lng: -95.02, heading: 280, zone: 'channel' },
                 { lat: 29.72, lng: -95.05, heading: 275, zone: 'channel' },
-                // Near Morgan's Point
-                { lat: 29.73, lng: -95.08, heading: 270, zone: 'channel' },
+                { lat: 29.72, lng: -95.08, heading: 270, zone: 'channel' },
+                // Near Jacintoport
+                { lat: 29.73, lng: -95.10, heading: 270, zone: 'channel' },
                 { lat: 29.73, lng: -95.12, heading: 268, zone: 'channel' },
+                { lat: 29.73, lng: -95.15, heading: 265, zone: 'channel' },
                 // Approaching Turning Basin
                 { lat: 29.74, lng: -95.18, heading: 265, zone: 'upper' },
                 { lat: 29.74, lng: -95.22, heading: 260, zone: 'upper' },
@@ -543,6 +537,7 @@
                 { lat: 29.72, lng: -95.00, heading: 45, zone: 'terminal', speed: 0 },
                 { lat: 29.62, lng: -94.99, heading: 90, zone: 'terminal', speed: 0 },
                 { lat: 29.74, lng: -95.27, heading: 180, zone: 'terminal', speed: 0.5 },
+                { lat: 29.31, lng: -94.79, heading: 90, zone: 'terminal', speed: 0 }, // Galveston
             ];
             
             for (let i = 0; i < Math.min(numVessels, shipPositions.length + 5); i++) {
@@ -557,21 +552,21 @@
                         heading: pos.heading + (Math.random() - 0.5) * 15
                     };
                 } else {
-                    // Extra random ships - some in bay, some in Gulf approach
-                    const inGulf = Math.random() > 0.5;
-                    if (inGulf) {
-                        pos = {
-                            lat: 29.0 + Math.random() * 0.25,
-                            lng: -94.3 + (Math.random() - 0.5) * 0.3,
-                            heading: 320 + Math.random() * 40,
-                            zone: 'gulf'
-                        };
-                    } else {
+                    // Extra random ships - in Houston/Galveston area
+                    const inBay = Math.random() > 0.5;
+                    if (inBay) {
                         pos = {
                             lat: 29.35 + Math.random() * 0.25,
                             lng: -94.85 + (Math.random() - 0.5) * 0.2,
                             heading: 300 + Math.random() * 60,
                             zone: 'bay'
+                        };
+                    } else {
+                        pos = {
+                            lat: 29.68 + Math.random() * 0.08,
+                            lng: -95.00 + (Math.random() - 0.5) * 0.3,
+                            heading: 260 + Math.random() * 40,
+                            zone: 'channel'
                         };
                     }
                 }
@@ -584,10 +579,10 @@
                     speed = Math.random() * 1;
                 } else if (pos.zone === 'channel' || pos.zone === 'upper') {
                     speed = 6 + Math.random() * 6; // 6-12 knots in channel
-                } else if (pos.zone === 'gulf') {
-                    speed = 12 + Math.random() * 10; // 12-22 knots in Gulf
+                } else if (pos.zone === 'bay') {
+                    speed = 10 + Math.random() * 8; // 10-18 knots in bay
                 } else {
-                    speed = 10 + Math.random() * 8; // 10-18 knots in open water
+                    speed = 8 + Math.random() * 6; // 8-14 knots
                 }
                 
                 const vesselType = vesselTypes[Math.floor(Math.random() * vesselTypes.length)];
@@ -687,8 +682,7 @@
 
         // ========== RAIL NETWORK DATA & VISUALIZATION ==========
         
-        // Texas Rail Network Data (from FRA dataset)
-        // Key rail lines serving Port of Houston area
+        // Texas Rail Network Data - Houston and Galveston area
         const railNetworkData = [
             // Union Pacific - Houston Area
             { owner: 'UP', subdiv: 'BAYTOWN', coords: [[29.7584, -95.0121], [29.7621, -94.9834], [29.7503, -94.9512]], miles: 0.31, tracks: 1 },
@@ -698,19 +692,11 @@
             { owner: 'UP', subdiv: 'GLIDDEN', coords: [[29.7203, -95.3695], [29.7195, -95.4312], [29.7188, -95.4956]], miles: 0.32, tracks: 1 },
             { owner: 'UP', subdiv: 'EUREKA', coords: [[29.7448, -95.3478], [29.7512, -95.2834], [29.7534, -95.2156]], miles: 0.73, tracks: 1 },
             { owner: 'UP', subdiv: 'COLUMBIA TAP INDUSTRIAL LEAD', coords: [[29.7120, -95.3183], [29.6956, -95.2834], [29.6712, -95.2445]], miles: 0.66, tracks: 1 },
-            { owner: 'UP', subdiv: 'FREEPORT IND LEAD', coords: [[29.0490, -95.3508], [29.0562, -95.3074], [29.0684, -95.2647]], miles: 2.88, tracks: 1 },
-            { owner: 'UP', subdiv: 'BEAUMONT (UP)', coords: [[29.9201, -93.9776], [29.8834, -94.0956], [29.8445, -94.2134]], miles: 0.87, tracks: 1 },
-            { owner: 'UP', subdiv: 'GREAT SOUTHWEST LEAD', coords: [[32.7716, -97.0719], [32.7720, -97.0322], [32.7883, -96.9945]], miles: 5.12, tracks: 1 },
-            { owner: 'UP', subdiv: 'WACO', coords: [[31.5535, -97.1577], [31.5551, -97.1195], [31.5615, -97.0795]], miles: 4.32, tracks: 2 },
-            { owner: 'UP', subdiv: 'FORT WORTH', coords: [[32.7548, -97.3584], [32.7571, -97.3187], [32.7589, -97.2813]], miles: 1.16, tracks: 1 },
-            // BNSF Railway - Houston & Fort Worth
+            // BNSF Railway - Houston
             { owner: 'BNSF', subdiv: 'HOUSTON (BNSF)', coords: [[29.7678, -95.3088], [29.7688, -95.2701], [29.7712, -95.2234]], miles: 0.58, tracks: 1 },
-            { owner: 'BNSF', subdiv: 'FORT WORTH', coords: [[32.8716, -97.2719], [32.8720, -97.2522], [32.8734, -97.2312]], miles: 0.04, tracks: 2 },
             // TCT - Texas City Terminal
             { owner: 'TCT', subdiv: 'TEXAS CITY', coords: [[29.3604, -94.9634], [29.3797, -94.9255], [29.3994, -94.8839]], miles: 2.68, tracks: 2 },
             { owner: 'TCT', subdiv: 'TEXAS CITY INDUSTRIAL', coords: [[29.3994, -94.8839], [29.4215, -94.8607], [29.4494, -94.8339]], miles: 0.94, tracks: 1 },
-            // USG - US Government (Lone Star Ordnance)
-            { owner: 'USG', subdiv: 'LONE STAR ORDNANCE', coords: [[33.4155, -94.5546], [33.4159, -94.5337], [33.4168, -94.5091]], miles: 5.82, tracks: 1 },
             // Port-Rail Connections (key intermodal links)
             { owner: 'UP', subdiv: 'BARBOURS CUT RAIL', coords: [[29.7234, -95.0012], [29.7312, -95.0156], [29.7456, -95.0334]], miles: 0.45, tracks: 2 },
             { owner: 'UP', subdiv: 'BAYPORT RAIL', coords: [[29.6234, -94.9912], [29.6356, -95.0034], [29.6512, -95.0212]], miles: 0.38, tracks: 1 },
@@ -842,7 +828,7 @@
                     const y = parseFloat(cols[12]); // latitude
                     
                     // Filter to Houston/Galveston area
-                    if (x < -96 || x > -94 || y < 29 || y > 30.5) continue;
+                    if (x < -95.5 || x > -94.5 || y < 29.2 || y > 30.0) continue;
                     
                     const node = {
                         objectId: cols[0],
