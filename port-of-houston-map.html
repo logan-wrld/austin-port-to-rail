@@ -84,10 +84,71 @@
         .type-tanker { background: #feb2b2; color: #742a2a; }
         .type-container { background: #90cdf4; color: #2a4365; }
         .type-other { background: #cbd5e0; color: #1a202c; }
+        
+        /* Rail styles */
+        .legend-line { width: 20px; height: 3px; margin-right: 8px; border-radius: 2px; }
+        .rail-up { background: #eab308; }
+        .rail-bnsf { background: #f97316; }
+        .rail-other { background: #6b7280; }
+        
+        .rail-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 220px;
+            font-size: 12px;
+        }
+        .rail-panel h3 { font-size: 14px; margin-bottom: 8px; color: #1a365d; }
+        .rail-stats { background: #f3f4f6; padding: 8px; border-radius: 4px; margin: 8px 0; }
+        .rail-stats div { margin: 4px 0; }
+        .rail-toggle { margin: 8px 0; }
+        .rail-toggle label { display: flex; align-items: center; cursor: pointer; margin: 4px 0; }
+        .rail-toggle input { margin-right: 8px; }
+        
+        .rail-popup { min-width: 180px; }
+        .rail-popup h4 { margin: 0 0 6px 0; color: #1a365d; font-size: 13px; }
+        .rail-popup .detail { font-size: 11px; margin: 3px 0; color: #4a5568; }
+        .owner-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .owner-up { background: #fef3c7; color: #92400e; }
+        .owner-bnsf { background: #ffedd5; color: #9a3412; }
+        .owner-other { background: #e5e7eb; color: #374151; }
     </style>
 </head>
 <body>
     <div id="map"></div>
+    
+    <!-- Rail Network Panel -->
+    <div class="rail-panel">
+        <h3>🚂 Rail Network</h3>
+        <div class="rail-stats">
+            <div><strong>Total Segments:</strong> <span id="railCount">0</span></div>
+            <div><strong>Total Miles:</strong> <span id="railMiles">0</span></div>
+        </div>
+        <div class="rail-toggle">
+            <label><input type="checkbox" id="toggleRail" checked onchange="toggleRailLayer()"> Show Rail Lines</label>
+            <label><input type="checkbox" id="toggleUP" checked onchange="filterRailByOwner()"> Union Pacific (UP)</label>
+            <label><input type="checkbox" id="toggleBNSF" checked onchange="filterRailByOwner()"> BNSF Railway</label>
+            <label><input type="checkbox" id="toggleOther" checked onchange="filterRailByOwner()"> Other Railroads</label>
+        </div>
+        <div class="legend" style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">
+            <div class="legend-item"><span class="legend-line rail-up"></span> Union Pacific</div>
+            <div class="legend-item"><span class="legend-line rail-bnsf"></span> BNSF Railway</div>
+            <div class="legend-item"><span class="legend-line rail-other"></span> Other (USG, TCT, etc.)</div>
+        </div>
+    </div>
+    
     <div class="info-panel">
         <h2>🚢 Port of Houston</h2>
         <p>AIS Ship Tracking</p>
@@ -114,6 +175,7 @@
             <div class="legend-item"><span class="legend-dot terminal"></span> Terminals</div>
             <div class="legend-item"><span class="legend-dot container"></span> Container Facilities</div>
             <div class="legend-item"><span class="legend-dot facility"></span> Other Facilities</div>
+            <div class="legend-item" style="margin-top:5px; padding-top:5px; border-top:1px solid #eee;"><span class="legend-line rail-up" style="display:inline-block;"></span> Rail Network</div>
         </div>
     </div>
 
@@ -130,6 +192,10 @@
         // Layer groups
         const facilitiesLayer = L.layerGroup().addTo(map);
         const shipsLayer = L.layerGroup().addTo(map);
+        const railLayer = L.layerGroup().addTo(map);
+        
+        // Rail data storage
+        let railSegments = [];
         
         // Auto-refresh state
         let autoRefreshInterval = null;
@@ -574,6 +640,145 @@
             }
         }
 
+        // ========== RAIL NETWORK DATA & VISUALIZATION ==========
+        
+        // Texas Rail Network Data (from FRA dataset)
+        // Key rail lines serving Port of Houston area
+        const railNetworkData = [
+            // Union Pacific - Houston Area
+            { owner: 'UP', subdiv: 'BAYTOWN', coords: [[29.7584, -95.0121], [29.7621, -94.9834], [29.7503, -94.9512]], miles: 0.31, tracks: 1 },
+            { owner: 'UP', subdiv: 'HOUSTON WEST BELT', coords: [[29.7486, -95.4501], [29.7501, -95.3869], [29.7624, -95.3012]], miles: 0.12, tracks: 1 },
+            { owner: 'UP', subdiv: 'BELL MAIN', coords: [[29.7624, -95.3636], [29.7634, -95.3257], [29.7638, -95.2824]], miles: 0.61, tracks: 2 },
+            { owner: 'UP', subdiv: 'STRANG', coords: [[29.7727, -95.1805], [29.7805, -95.1255], [29.7834, -95.0712]], miles: 0.53, tracks: 1 },
+            { owner: 'UP', subdiv: 'GLIDDEN', coords: [[29.7203, -95.3695], [29.7195, -95.4312], [29.7188, -95.4956]], miles: 0.32, tracks: 1 },
+            { owner: 'UP', subdiv: 'EUREKA', coords: [[29.7448, -95.3478], [29.7512, -95.2834], [29.7534, -95.2156]], miles: 0.73, tracks: 1 },
+            { owner: 'UP', subdiv: 'COLUMBIA TAP INDUSTRIAL LEAD', coords: [[29.7120, -95.3183], [29.6956, -95.2834], [29.6712, -95.2445]], miles: 0.66, tracks: 1 },
+            { owner: 'UP', subdiv: 'FREEPORT IND LEAD', coords: [[29.0490, -95.3508], [29.0562, -95.3074], [29.0684, -95.2647]], miles: 2.88, tracks: 1 },
+            { owner: 'UP', subdiv: 'BEAUMONT (UP)', coords: [[29.9201, -93.9776], [29.8834, -94.0956], [29.8445, -94.2134]], miles: 0.87, tracks: 1 },
+            { owner: 'UP', subdiv: 'GREAT SOUTHWEST LEAD', coords: [[32.7716, -97.0719], [32.7720, -97.0322], [32.7883, -96.9945]], miles: 5.12, tracks: 1 },
+            { owner: 'UP', subdiv: 'WACO', coords: [[31.5535, -97.1577], [31.5551, -97.1195], [31.5615, -97.0795]], miles: 4.32, tracks: 2 },
+            { owner: 'UP', subdiv: 'FORT WORTH', coords: [[32.7548, -97.3584], [32.7571, -97.3187], [32.7589, -97.2813]], miles: 1.16, tracks: 1 },
+            // BNSF Railway - Houston & Fort Worth
+            { owner: 'BNSF', subdiv: 'HOUSTON (BNSF)', coords: [[29.7678, -95.3088], [29.7688, -95.2701], [29.7712, -95.2234]], miles: 0.58, tracks: 1 },
+            { owner: 'BNSF', subdiv: 'FORT WORTH', coords: [[32.8716, -97.2719], [32.8720, -97.2522], [32.8734, -97.2312]], miles: 0.04, tracks: 2 },
+            // TCT - Texas City Terminal
+            { owner: 'TCT', subdiv: 'TEXAS CITY', coords: [[29.3604, -94.9634], [29.3797, -94.9255], [29.3994, -94.8839]], miles: 2.68, tracks: 2 },
+            { owner: 'TCT', subdiv: 'TEXAS CITY INDUSTRIAL', coords: [[29.3994, -94.8839], [29.4215, -94.8607], [29.4494, -94.8339]], miles: 0.94, tracks: 1 },
+            // USG - US Government (Lone Star Ordnance)
+            { owner: 'USG', subdiv: 'LONE STAR ORDNANCE', coords: [[33.4155, -94.5546], [33.4159, -94.5337], [33.4168, -94.5091]], miles: 5.82, tracks: 1 },
+            // Port-Rail Connections (key intermodal links)
+            { owner: 'UP', subdiv: 'BARBOURS CUT RAIL', coords: [[29.7234, -95.0012], [29.7312, -95.0156], [29.7456, -95.0334]], miles: 0.45, tracks: 2 },
+            { owner: 'UP', subdiv: 'BAYPORT RAIL', coords: [[29.6234, -94.9912], [29.6356, -95.0034], [29.6512, -95.0212]], miles: 0.38, tracks: 1 },
+            { owner: 'UP', subdiv: 'TURNING BASIN RAIL', coords: [[29.7355, -95.2755], [29.7412, -95.2612], [29.7534, -95.2434]], miles: 0.52, tracks: 2 },
+            // Additional Houston metro connections
+            { owner: 'UP', subdiv: 'GALENA PARK', coords: [[29.7356, -95.2155], [29.7423, -95.1912], [29.7512, -95.1634]], miles: 0.48, tracks: 1 },
+            { owner: 'BNSF', subdiv: 'PEARLAND', coords: [[29.5634, -95.2856], [29.5912, -95.3012], [29.6234, -95.3234]], miles: 0.62, tracks: 1 },
+            { owner: 'UP', subdiv: 'PASADENA', coords: [[29.6912, -95.1734], [29.7034, -95.1512], [29.7156, -95.1234]], miles: 0.55, tracks: 1 },
+            { owner: 'UP', subdiv: 'LA PORTE', coords: [[29.6656, -95.0534], [29.6834, -95.0312], [29.7012, -95.0134]], miles: 0.41, tracks: 1 },
+        ];
+        
+        // Rail owner colors
+        const railColors = {
+            'UP': '#eab308',      // Yellow for Union Pacific
+            'BNSF': '#f97316',    // Orange for BNSF
+            'TCT': '#6366f1',     // Indigo for Texas City Terminal
+            'USG': '#6b7280',     // Gray for US Government
+            'BRG': '#10b981',     // Emerald
+            'AWRR': '#8b5cf6',    // Violet
+            'FWWR': '#ec4899',    // Pink
+            'default': '#6b7280'  // Gray default
+        };
+        
+        // Get owner badge class
+        function getOwnerClass(owner) {
+            if (owner === 'UP') return 'owner-up';
+            if (owner === 'BNSF') return 'owner-bnsf';
+            return 'owner-other';
+        }
+        
+        // Draw rail network
+        function drawRailNetwork() {
+            railLayer.clearLayers();
+            railSegments = [];
+            
+            const showUP = document.getElementById('toggleUP').checked;
+            const showBNSF = document.getElementById('toggleBNSF').checked;
+            const showOther = document.getElementById('toggleOther').checked;
+            
+            let totalMiles = 0;
+            let segmentCount = 0;
+            
+            railNetworkData.forEach(rail => {
+                // Filter by owner
+                if (rail.owner === 'UP' && !showUP) return;
+                if (rail.owner === 'BNSF' && !showBNSF) return;
+                if (!['UP', 'BNSF'].includes(rail.owner) && !showOther) return;
+                
+                const color = railColors[rail.owner] || railColors['default'];
+                const weight = rail.tracks > 1 ? 4 : 3;
+                
+                const line = L.polyline(rail.coords, {
+                    color: color,
+                    weight: weight,
+                    opacity: 0.8,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }).addTo(railLayer);
+                
+                // Popup with rail info
+                line.bindPopup(`
+                    <div class="rail-popup">
+                        <span class="owner-badge ${getOwnerClass(rail.owner)}">${rail.owner}</span>
+                        <h4>🛤️ ${rail.subdiv}</h4>
+                        <div class="detail"><strong>Owner:</strong> ${getOwnerFullName(rail.owner)}</div>
+                        <div class="detail"><strong>Miles:</strong> ${rail.miles.toFixed(2)}</div>
+                        <div class="detail"><strong>Tracks:</strong> ${rail.tracks}</div>
+                    </div>
+                `);
+                
+                railSegments.push({ line, data: rail });
+                totalMiles += rail.miles;
+                segmentCount++;
+            });
+            
+            // Update stats
+            document.getElementById('railCount').textContent = segmentCount;
+            document.getElementById('railMiles').textContent = totalMiles.toFixed(1);
+        }
+        
+        // Get full railroad name
+        function getOwnerFullName(code) {
+            const names = {
+                'UP': 'Union Pacific Railroad',
+                'BNSF': 'BNSF Railway',
+                'TCT': 'Texas City Terminal Railway',
+                'USG': 'US Government',
+                'BRG': 'Brownsville & Rio Grande',
+                'AWRR': 'Austin Western Railroad',
+                'FWWR': 'Fort Worth & Western Railroad'
+            };
+            return names[code] || code;
+        }
+        
+        // Toggle rail layer visibility
+        function toggleRailLayer() {
+            const show = document.getElementById('toggleRail').checked;
+            if (show) {
+                map.addLayer(railLayer);
+                drawRailNetwork();
+            } else {
+                map.removeLayer(railLayer);
+            }
+        }
+        
+        // Filter rail by owner
+        function filterRailByOwner() {
+            drawRailNetwork();
+        }
+        
+        // Initialize rail network
+        drawRailNetwork();
+        
         // Load initial data
         loadAISData();
     </script>
