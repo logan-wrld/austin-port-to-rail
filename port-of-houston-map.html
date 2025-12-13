@@ -99,23 +99,23 @@
             font-size: 12px;
         }
         .forecast-panel h3 { font-size: 14px; margin-bottom: 8px; color: #1a365d; }
-        .forecast-window {
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 8px;
-            margin: 4px 0;
-            border-radius: 4px;
+        .forecast-row {
+            padding: 8px;
             background: #f7fafc;
+            border-radius: 4px;
+            font-size: 12px;
+            line-height: 1.6;
         }
-        .forecast-window.urgent { border-left: 3px solid #e53e3e; }
-        .forecast-window.soon { border-left: 3px solid #f6ad55; }
-        .forecast-window.upcoming { border-left: 3px solid #68d391; }
-        .forecast-window .window-label { font-weight: bold; color: #2d3748; }
-        .forecast-window .ship-count { color: #4a5568; }
-        .forecast-window .surge { font-size: 10px; }
-        .surge-high { color: #e53e3e; }
-        .surge-moderate { color: #dd6b20; }
-        .surge-normal { color: #38a169; }
+        .forecast-label { color: #4a5568; }
+        .forecast-sep { color: #cbd5e0; margin: 0 8px; }
+        .forecast-summary {
+            margin-top: 6px;
+            padding: 6px 8px;
+            background: #edf2f7;
+            border-radius: 4px;
+            font-size: 11px;
+            color: #2d3748;
+        }
         .forecast-stats {
             margin-top: 8px;
             padding-top: 8px;
@@ -488,7 +488,7 @@
 
     <!-- Ship Arrival Forecast Panel -->
     <div class="forecast-panel" id="forecastPanel">
-        <h3>📊 72-Hour Ship Forecast</h3>
+        <h3>72-Hour Ship Forecast</h3>
         <div id="forecastContent">
             <div style="color:#718096; font-style:italic;">Loading forecast...</div>
         </div>
@@ -997,38 +997,23 @@
             const summary = ShipForecasting.getSummary(normalizedVessels);
             const forecast = summary.forecast;
             
-            // Build forecast HTML
-            let html = '';
-            
-            // 0-24h window
+            // Build forecast HTML - simple inline format
             const w24 = forecast.windows["0-24h"];
-            html += `<div class="forecast-window urgent">
-                <span class="window-label">⏰ Next 24h</span>
-                <span class="ship-count">${w24.count} ships</span>
-                <span class="surge ${w24.congestionLevel === 'high' ? 'surge-high' : w24.congestionLevel === 'moderate' ? 'surge-moderate' : 'surge-normal'}">
-                    ${w24.congestionAlert}
-                </span>
-            </div>`;
-            
-            // 24-48h window
             const w48 = forecast.windows["24-48h"];
-            html += `<div class="forecast-window soon">
-                <span class="window-label">📅 24-48h</span>
-                <span class="ship-count">${w48.count} ships</span>
-                <span class="surge ${w48.congestionLevel === 'high' ? 'surge-high' : w48.congestionLevel === 'moderate' ? 'surge-moderate' : 'surge-normal'}">
-                    ${w48.congestionAlert}
-                </span>
-            </div>`;
-            
-            // 48-72h window
             const w72 = forecast.windows["48-72h"];
-            html += `<div class="forecast-window upcoming">
-                <span class="window-label">🔮 48-72h</span>
-                <span class="ship-count">${w72.count} ships</span>
-                <span class="surge ${w72.congestionLevel === 'high' ? 'surge-high' : w72.congestionLevel === 'moderate' ? 'surge-moderate' : 'surge-normal'}">
-                    ${w72.congestionAlert}
-                </span>
-            </div>`;
+            
+            let html = `
+                <div class="forecast-row">
+                    <span class="forecast-label">0-24h:</span> <strong>${w24.count}</strong> ships
+                    <span class="forecast-sep">|</span>
+                    <span class="forecast-label">24-48h:</span> <strong>${w48.count}</strong> ships
+                    <span class="forecast-sep">|</span>
+                    <span class="forecast-label">48-72h:</span> <strong>${w72.count}</strong> ships
+                </div>
+                <div class="forecast-summary">
+                    Total: <strong>${w24.count + w48.count + w72.count}</strong> ships in 72h window
+                </div>
+            `;
             
             document.getElementById('forecastContent').innerHTML = html;
             
