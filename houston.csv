@@ -1,0 +1,4 @@
+portid,portname,country,ISO3,continent,fullname,lat,lon,vessel_count_total,vessel_count_container,vessel_count_dry_bulk,vessel_count_general_cargo,vessel_count_RoRo,vessel_count_tanker,industry_top1,industry_top2,industry_top3,share_country_maritime_import,share_country_maritime_export,LOCODE
+port481,Houston,United States,USA,North America,Houston - United States,29.72023114,-95.13978774,7326,991,731,562,72,4970,Mineral Products,Chemical & Allied Industries,Vegetable Products,8.19,17.33,US HOU
+port1285,Texas City,United States,USA,North America,Texas City - United States,29.37581007,-94.91276462,739,0,30,2,0,707,Mineral Products,Chemical & Allied Industries,Plastics Rubber Leather,0.61,1.41,US TXT
+port373,Galveston,United States,USA,North America,Galveston - United States,29.30976119,-94.80456985,608,9,83,74,95,347,Mineral Products,Vegetable Products,Chemical & Allied Industries,0.13,0.59,US GLS
