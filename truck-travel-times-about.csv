@@ -1,0 +1,11 @@
+Column Name,Description,API Field Name,Data Type
+Origin State,Origin county state,orig_state,Text
+Origin County,Origin county name,orig_county_name,Text
+Destination CTFIPS,Destination county FIPS,dest_county_fips,Text
+Destination State,Destination state,dest_state,Text
+Destination County,Destination county name,dest_county_name,Text
+Year,Data year,year,Number
+Movements,County pair movements,pair_moves,Text
+25th Percentile (minutes),25th percentile travel time,tt_percentile_25,Number
+50th Percentile (minutes),50th percentile travel time,tt_percentile_50,Number
+75th Percentile (minutes),75th percentile travel time,tt_percentile_75,Number
