@@ -168,8 +168,11 @@
             marker.bindPopup(`<strong>${f.name}</strong><br>${f.desc}`);
         });
 
-        // Draw Houston Ship Channel
+        // Draw Houston Ship Channel (extended to Gulf approach)
         const channelPath = [
+            [29.0, -94.4],        // Gulf of Mexico approach
+            [29.1, -94.5],
+            [29.2, -94.6],
             [29.3108, -94.7872],  // Galveston
             [29.35, -94.82],
             [29.55, -94.92],
@@ -253,10 +256,11 @@
             
             try {
                 // Bounding box for Galveston Bay / Houston Ship Channel area
-                const minLat = 29.2;
+                // Extended further into Gulf of Mexico to capture approaching vessels
+                const minLat = 28.8;
                 const maxLat = 29.9;
                 const minLon = -95.4;
-                const maxLon = -94.5;
+                const maxLon = -94.0;
                 
                 // Try ArcGIS Maritime service
                 const response = await fetch(
@@ -318,10 +322,10 @@
             aisSocket = new WebSocket('wss://stream.aisstream.io/v0/stream');
             
             aisSocket.onopen = () => {
-                // Subscribe to Houston Ship Channel area
+                // Subscribe to Houston Ship Channel area (extended into Gulf)
                 const subscribeMsg = {
                     APIKey: AIS_API_KEY,
-                    BoundingBoxes: [[[-95.4, 29.2], [-94.5, 29.9]]]
+                    BoundingBoxes: [[[-95.4, 28.8], [-94.0, 29.9]]]
                 };
                 aisSocket.send(JSON.stringify(subscribeMsg));
                 setStatus('Connected to live AIS stream', 'success');
@@ -392,8 +396,16 @@
             const numVessels = 18 + Math.floor(Math.random() * 8);
             
             // Define realistic ship positions along the actual shipping lanes
+            // Extended further into Gulf of Mexico for approaching vessels
             const shipPositions = [
+                // Gulf of Mexico - ships approaching from open water
+                { lat: 28.95, lng: -94.35, heading: 340, zone: 'gulf' },
+                { lat: 29.02, lng: -94.42, heading: 335, zone: 'gulf' },
+                { lat: 29.08, lng: -94.48, heading: 332, zone: 'gulf' },
+                { lat: 29.15, lng: -94.55, heading: 330, zone: 'gulf' },
+                { lat: 29.22, lng: -94.62, heading: 328, zone: 'gulf' },
                 // Galveston Bay approach - ships entering
+                { lat: 29.28, lng: -94.68, heading: 330, zone: 'approach' },
                 { lat: 29.32, lng: -94.72, heading: 330, zone: 'approach' },
                 { lat: 29.36, lng: -94.76, heading: 325, zone: 'approach' },
                 { lat: 29.40, lng: -94.78, heading: 320, zone: 'bay' },
@@ -434,13 +446,23 @@
                         heading: pos.heading + (Math.random() - 0.5) * 15
                     };
                 } else {
-                    // Extra random ships in the bay area
-                    pos = {
-                        lat: 29.35 + Math.random() * 0.25,
-                        lng: -94.85 + (Math.random() - 0.5) * 0.2,
-                        heading: 300 + Math.random() * 60,
-                        zone: 'bay'
-                    };
+                    // Extra random ships - some in bay, some in Gulf approach
+                    const inGulf = Math.random() > 0.5;
+                    if (inGulf) {
+                        pos = {
+                            lat: 29.0 + Math.random() * 0.25,
+                            lng: -94.3 + (Math.random() - 0.5) * 0.3,
+                            heading: 320 + Math.random() * 40,
+                            zone: 'gulf'
+                        };
+                    } else {
+                        pos = {
+                            lat: 29.35 + Math.random() * 0.25,
+                            lng: -94.85 + (Math.random() - 0.5) * 0.2,
+                            heading: 300 + Math.random() * 60,
+                            zone: 'bay'
+                        };
+                    }
                 }
                 
                 // Speed based on zone
@@ -451,6 +473,8 @@
                     speed = Math.random() * 1;
                 } else if (pos.zone === 'channel' || pos.zone === 'upper') {
                     speed = 6 + Math.random() * 6; // 6-12 knots in channel
+                } else if (pos.zone === 'gulf') {
+                    speed = 12 + Math.random() * 10; // 12-22 knots in Gulf
                 } else {
                     speed = 10 + Math.random() * 8; // 10-18 knots in open water
                 }
