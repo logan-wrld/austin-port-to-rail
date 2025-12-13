@@ -954,31 +954,35 @@
         
         // Toggle node layer visibility
         function toggleNodeLayer() {
-            const show = document.getElementById('toggleNodes').checked;
-            console.log('Toggle nodes:', show);
+            const checkbox = document.getElementById('toggleNodes');
+            const show = checkbox.checked;
             
             if (show) {
+                // Show nodes
                 if (railNodes.length === 0) {
                     loadRailNodes().then(() => {
                         drawRailNodes();
-                        map.addLayer(nodesLayer);
+                        if (!map.hasLayer(nodesLayer)) {
+                            map.addLayer(nodesLayer);
+                        }
                     });
                 } else {
                     drawRailNodes();
-                    map.addLayer(nodesLayer);
+                    if (!map.hasLayer(nodesLayer)) {
+                        map.addLayer(nodesLayer);
+                    }
                 }
             } else {
-                // Clear the layer and remove it from map
+                // Hide nodes - remove layer from map
                 nodesLayer.clearLayers();
-                if (map.hasLayer(nodesLayer)) {
-                    map.removeLayer(nodesLayer);
-                }
+                map.removeLayer(nodesLayer);
             }
         }
         
         // Redraw nodes on zoom change
         map.on('zoomend', function() {
-            if (document.getElementById('toggleNodes').checked && map.hasLayer(nodesLayer)) {
+            const checkbox = document.getElementById('toggleNodes');
+            if (checkbox && checkbox.checked && map.hasLayer(nodesLayer)) {
                 drawRailNodes();
             }
         });
