@@ -656,12 +656,11 @@
             }
             
             try {
-                // Bounding box for Galveston Bay / Houston Ship Channel area
-                // Extended further into Gulf of Mexico to capture approaching vessels
-                const minLat = 28.8;
+                // Bounding box for Houston/Galveston area
+                const minLat = 29.2;
                 const maxLat = 29.9;
                 const minLon = -95.4;
-                const maxLon = -94.0;
+                const maxLon = -94.7;
                 
                 // Try ArcGIS Maritime service
                 const response = await fetch(
@@ -723,10 +722,10 @@
             aisSocket = new WebSocket('wss://stream.aisstream.io/v0/stream');
             
             aisSocket.onopen = () => {
-                // Subscribe to Houston Ship Channel area (extended into Gulf)
+                // Subscribe to Houston/Galveston area
                 const subscribeMsg = {
                     APIKey: AIS_API_KEY,
-                    BoundingBoxes: [[[-95.4, 28.8], [-94.0, 29.9]]]
+                    BoundingBoxes: [[[-95.4, 29.2], [-94.7, 29.9]]]
                 };
                 aisSocket.send(JSON.stringify(subscribeMsg));
                 setStatus('Connected to live AIS stream', 'success');
@@ -753,8 +752,18 @@
                         destination: meta.Destination || 'Unknown',
                         flag: meta.Flag || '',
                         length: meta.Length || 'N/A',
-                        draft: meta.Draught || 'N/A'
+                        draft: meta.Draught || 'N/A',
+                        lastSeen: Date.now()
                     });
+                    
+                    // Cleanup old vessels (not seen in 5 minutes)
+                    const VESSEL_TIMEOUT = 5 * 60 * 1000;
+                    const now = Date.now();
+                    for (const [mmsi, vessel] of liveVessels.entries()) {
+                        if (now - (vessel.lastSeen || 0) > VESSEL_TIMEOUT) {
+                            liveVessels.delete(mmsi);
+                        }
+                    }
                     
                     // Update display every 10 vessels received
                     if (liveVessels.size % 10 === 0) {
@@ -796,10 +805,21 @@
             const vessels = [];
             const numVessels = 28 + Math.floor(Math.random() * 12); // More vessels for extended range
             
-            // Define realistic ship positions along the actual shipping lanes
-            // Extended further into Gulf of Mexico for approaching vessels
+            // Define realistic ship positions along the Houston Ship Channel and Galveston Bay
             const shipPositions = [
-                // Gulf of Mexico - ships approaching from open water
+                // Deep Gulf of Mexico - ships 80-120nm out (48-72 hour ETA)
+                { lat: 27.8, lng: -93.5, heading: 315, zone: 'deep-gulf' },
+                { lat: 27.9, lng: -93.8, heading: 320, zone: 'deep-gulf' },
+                { lat: 28.0, lng: -94.0, heading: 325, zone: 'deep-gulf' },
+                { lat: 28.1, lng: -93.6, heading: 318, zone: 'deep-gulf' },
+                // Mid Gulf - ships 50-80nm out (24-48 hour ETA)
+                { lat: 28.3, lng: -94.0, heading: 330, zone: 'mid-gulf' },
+                { lat: 28.4, lng: -94.2, heading: 328, zone: 'mid-gulf' },
+                { lat: 28.5, lng: -93.9, heading: 332, zone: 'mid-gulf' },
+                { lat: 28.55, lng: -94.1, heading: 335, zone: 'mid-gulf' },
+                // Near Gulf - ships 20-50nm out (12-24 hour ETA)
+                { lat: 28.7, lng: -94.2, heading: 338, zone: 'near-gulf' },
+                { lat: 28.8, lng: -94.3, heading: 340, zone: 'near-gulf' },
                 { lat: 28.95, lng: -94.35, heading: 340, zone: 'gulf' },
                 { lat: 29.02, lng: -94.42, heading: 335, zone: 'gulf' },
                 { lat: 29.08, lng: -94.48, heading: 332, zone: 'gulf' },
@@ -852,16 +872,9 @@
                         heading: pos.heading + (Math.random() - 0.5) * 15
                     };
                 } else {
-                    // Extra random ships - some in bay, some in Gulf approach
-                    const inGulf = Math.random() > 0.5;
-                    if (inGulf) {
-                        pos = {
-                            lat: 29.0 + Math.random() * 0.25,
-                            lng: -94.3 + (Math.random() - 0.5) * 0.3,
-                            heading: 320 + Math.random() * 40,
-                            zone: 'gulf'
-                        };
-                    } else {
+                    // Extra random ships - in Houston/Galveston area
+                    const inBay = Math.random() > 0.5;
+                    if (inBay) {
                         pos = {
                             lat: 29.35 + Math.random() * 0.25,
                             lng: -94.85 + (Math.random() - 0.5) * 0.2,
@@ -886,10 +899,10 @@
                     speed = Math.random() * 1;
                 } else if (pos.zone === 'channel' || pos.zone === 'upper') {
                     speed = 6 + Math.random() * 6; // 6-12 knots in channel
-                } else if (pos.zone === 'gulf') {
-                    speed = 12 + Math.random() * 10; // 12-22 knots in Gulf
+                } else if (pos.zone === 'bay') {
+                    speed = 10 + Math.random() * 8; // 10-18 knots in bay
                 } else {
-                    speed = 10 + Math.random() * 8; // 10-18 knots in open water
+                    speed = 8 + Math.random() * 6; // 8-14 knots
                 }
                 
                 const vesselType = vesselTypes[Math.floor(Math.random() * vesselTypes.length)];
@@ -1228,6 +1241,9 @@
                 return railNodes;
             } catch (error) {
                 console.error('Error loading rail nodes:', error);
+                // Show user-friendly error feedback
+                document.getElementById('nodeCount').textContent = 'Error';
+                document.getElementById('stationCount').textContent = 'Error';
                 return [];
             }
         }
@@ -1518,11 +1534,11 @@
                 // Convert Fahrenheit to Kelvin: K = (F - 32) * 5/9 + 273.15
                 const fToK = (f) => (f - 32) * 5/9 + 273.15;
                 const demoForecastDays = [
-                    { date: new Date(), temps: [fToK(78), fToK(65)], conditions: [{ id: 801, description: 'partly cloudy' }] },
-                    { date: new Date(Date.now() + 86400000), temps: [fToK(82), fToK(68)], conditions: [{ id: 800, description: 'clear sky' }] },
-                    { date: new Date(Date.now() + 2*86400000), temps: [fToK(79), fToK(66)], conditions: [{ id: 802, description: 'scattered clouds' }] },
-                    { date: new Date(Date.now() + 3*86400000), temps: [fToK(75), fToK(64)], conditions: [{ id: 500, description: 'light rain' }] },
-                    { date: new Date(Date.now() + 4*86400000), temps: [fToK(81), fToK(67)], conditions: [{ id: 800, description: 'clear sky' }] }
+                    { date: new Date(), temps: [fToK(78), fToK(65)], conditions: [{ id: 801, description: 'partly cloudy', humidity: 65 }] },
+                    { date: new Date(Date.now() + 86400000), temps: [fToK(82), fToK(68)], conditions: [{ id: 800, description: 'clear sky', humidity: 55 }] },
+                    { date: new Date(Date.now() + 2*86400000), temps: [fToK(79), fToK(66)], conditions: [{ id: 802, description: 'scattered clouds', humidity: 60 }] },
+                    { date: new Date(Date.now() + 3*86400000), temps: [fToK(75), fToK(64)], conditions: [{ id: 500, description: 'light rain', humidity: 80 }] },
+                    { date: new Date(Date.now() + 4*86400000), temps: [fToK(81), fToK(67)], conditions: [{ id: 800, description: 'clear sky', humidity: 50 }] }
                 ];
                 storedForecastData = {
                     dailyForecast: {},
