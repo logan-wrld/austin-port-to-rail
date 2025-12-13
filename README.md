@@ -92,6 +92,9 @@ Did they push the boundaries?
 
 Steps to run:
 
+User Interface: 
+`python3 -m http.server 8000`
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate 
