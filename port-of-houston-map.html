@@ -826,7 +826,7 @@
         // Load rail nodes from CSV file
         async function loadRailNodes() {
             try {
-                const response = await fetch('railroad-nodes.csv');
+                const response = await fetch('data/railroad-nodes.csv');
                 const csvText = await response.text();
                 const lines = csvText.trim().split('\n');
                 
