@@ -15,6 +15,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
         }
 
         #map {
@@ -22,27 +24,47 @@
             width: 100%;
         }
 
+        /* Dark theme with colorful features - dark land, colorful lines */
+        .leaflet-container {
+            background-color: #0a0a0a;
+        }
+        
+        /* Aggressive filter: very dark land but highly saturated colorful features */
+        body.dark-theme .leaflet-tile-container img {
+            filter: brightness(0.4) contrast(1.8) saturate(2.0);
+        }
+        
+        /* Light theme - no filter */
+        body.light-theme .leaflet-container {
+            background-color: #f4f4f4;
+        }
+        
+        body.light-theme .leaflet-tile-container img {
+            filter: none;
+        }
+
         .info-panel {
             position: absolute;
             top: 10px;
             right: 10px;
-            background: white;
+            background: #2d2d2d;
             padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
             z-index: 1000;
             max-width: 280px;
+            border: 1px solid #404040;
         }
 
         .info-panel h2 {
             font-size: 16px;
             margin-bottom: 8px;
-            color: #1a365d;
+            color: #e0e0e0;
         }
 
         .info-panel p {
             font-size: 12px;
-            color: #666;
+            color: #b0b0b0;
             margin-bottom: 5px;
         }
 
@@ -55,6 +77,7 @@
             align-items: center;
             margin: 5px 0;
             font-size: 11px;
+            color: #e0e0e0;
         }
 
         .legend-dot {
@@ -92,7 +115,7 @@
         .controls {
             margin-top: 12px;
             padding-top: 12px;
-            border-top: 1px solid #eee;
+            border-top: 1px solid #404040;
         }
 
         .btn {
@@ -109,12 +132,13 @@
         }
 
         .btn:hover {
-            background: #2c5282;
+            background: #4299e1;
         }
 
         .btn:disabled {
-            background: #a0aec0;
+            background: #4a5568;
             cursor: not-allowed;
+            color: #718096;
         }
 
         .btn.danger {
@@ -122,37 +146,38 @@
         }
 
         .btn.danger:hover {
-            background: #c53030;
+            background: #fc8181;
         }
 
         .ship-count {
-            background: #edf2f7;
+            background: #1a1a1a;
             padding: 8px 12px;
             border-radius: 4px;
             margin-top: 8px;
             font-size: 12px;
+            border: 1px solid #404040;
         }
 
         .ship-count strong {
-            color: #2d3748;
+            color: #e0e0e0;
         }
 
         .status {
             font-size: 11px;
-            color: #718096;
+            color: #a0aec0;
             margin-top: 8px;
         }
 
         .status.loading {
-            color: #3182ce;
+            color: #63b3ed;
         }
 
         .status.error {
-            color: #e53e3e;
+            color: #fc8181;
         }
 
         .status.success {
-            color: #38a169;
+            color: #68d391;
         }
 
         .ship-icon {
@@ -166,18 +191,18 @@
 
         .vessel-popup h3 {
             margin: 0 0 8px 0;
-            color: #1a365d;
+            color: #e0e0e0;
             font-size: 14px;
         }
 
         .vessel-popup .detail {
             font-size: 12px;
             margin: 4px 0;
-            color: #4a5568;
+            color: #b0b0b0;
         }
 
         .vessel-popup .detail strong {
-            color: #2d3748;
+            color: #e0e0e0;
         }
 
         .vessel-type {
@@ -214,112 +239,60 @@
             position: absolute;
             bottom: 10px;
             right: 10px;
-            background: white;
+            background: #2d2d2d;
             padding: 12px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
             z-index: 1000;
             max-width: 320px;
             font-size: 12px;
+            border: 1px solid #404040;
         }
 
         .forecast-panel h3 {
             font-size: 14px;
             margin-bottom: 8px;
-            color: #1a365d;
+            color: #e0e0e0;
         }
 
         .forecast-row {
             padding: 8px;
-            background: #f7fafc;
+            background: #1a1a1a;
             border-radius: 4px;
             font-size: 12px;
             line-height: 1.6;
+            border: 1px solid #404040;
         }
 
         .forecast-label {
-            color: #4a5568;
+            color: #b0b0b0;
         }
 
         .forecast-sep {
-            color: #cbd5e0;
+            color: #606060;
             margin: 0 8px;
         }
 
         .forecast-summary {
             margin-top: 6px;
             padding: 6px 8px;
-            background: #edf2f7;
+            background: #1a1a1a;
             border-radius: 4px;
             font-size: 11px;
-            color: #2d3748;
+            color: #e0e0e0;
+            border: 1px solid #404040;
         }
 
         .forecast-stats {
             margin-top: 8px;
             padding-top: 8px;
-            border-top: 1px solid #e2e8f0;
+            border-top: 1px solid #404040;
             font-size: 11px;
-            color: #718096;
+            color: #a0aec0;
         }
 
         .forecast-stats div {
             margin: 3px 0;
-        }
-
-        /* Rail Node Analysis Styles */
-        .rail-analysis-btn {
-            margin-top: 8px;
-            padding: 6px 12px;
-            background: #805ad5;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            width: 100%;
-        }
-        .rail-analysis-btn:hover { background: #6b46c1; }
-        .rail-analysis-btn:disabled { background: #a0aec0; cursor: wait; }
-        
-        .rail-analysis-results {
-            margin-top: 8px;
-            max-height: 200px;
-            overflow-y: auto;
-            font-size: 10px;
-        }
-        .rail-node-item {
-            padding: 6px 8px;
-            margin: 4px 0;
-            background: #f7fafc;
-            border-radius: 4px;
-            border-left: 3px solid #cbd5e0;
-        }
-        .rail-node-item.critical { border-left-color: #e53e3e; background: #fff5f5; }
-        .rail-node-item.stressed { border-left-color: #dd6b20; background: #fffaf0; }
-        .rail-node-item.elevated { border-left-color: #d69e2e; background: #fffff0; }
-        .rail-node-item.normal { border-left-color: #38a169; }
-        
-        .rail-node-header {
-            display: flex;
-            justify-content: space-between;
-            font-weight: 600;
-            margin-bottom: 2px;
-        }
-        .rail-node-status {
-            padding: 1px 6px;
-            border-radius: 3px;
-            font-size: 9px;
-            font-weight: bold;
-        }
-        .status-critical { background: #fed7d7; color: #c53030; }
-        .status-stressed { background: #feebc8; color: #c05621; }
-        .status-elevated { background: #fefcbf; color: #975a16; }
-        .status-normal { background: #c6f6d5; color: #276749; }
-        
-        .rail-node-details {
-            color: #718096;
-            font-size: 9px;
         }
 
         /* Rail styles */
@@ -346,26 +319,29 @@
             position: absolute;
             top: 10px;
             left: 10px;
-            background: white;
+            background: #2d2d2d;
             padding: 12px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
             z-index: 1000;
             max-width: 220px;
             font-size: 12px;
+            border: 1px solid #404040;
         }
 
         .rail-panel h3 {
             font-size: 14px;
             margin-bottom: 8px;
-            color: #1a365d;
+            color: #e0e0e0;
         }
 
         .rail-stats {
-            background: #f3f4f6;
+            background: #1a1a1a;
             padding: 8px;
             border-radius: 4px;
             margin: 8px 0;
+            border: 1px solid #404040;
+            color: #e0e0e0;
         }
 
         .rail-stats div {
@@ -381,6 +357,22 @@
             align-items: center;
             cursor: pointer;
             margin: 4px 0;
+            color: #e0e0e0;
+        }
+
+        /* Light theme overrides for rail panel elements */
+        body.light-theme .rail-stats {
+            background: #f7fafc;
+            border-color: #e2e8f0;
+            color: #2d3748;
+        }
+
+        body.light-theme .rail-stats div {
+            color: #2d3748;
+        }
+
+        body.light-theme .rail-toggle label {
+            color: #2d3748;
         }
 
         .rail-toggle input {
@@ -393,14 +385,14 @@
 
         .rail-popup h4 {
             margin: 0 0 6px 0;
-            color: #1a365d;
+            color: #e0e0e0;
             font-size: 13px;
         }
 
         .rail-popup .detail {
             font-size: 11px;
             margin: 3px 0;
-            color: #4a5568;
+            color: #b0b0b0;
         }
 
         .owner-badge {
@@ -454,14 +446,14 @@
 
         .node-popup h4 {
             margin: 0 0 6px 0;
-            color: #1a365d;
+            color: #e0e0e0;
             font-size: 13px;
         }
 
         .node-popup .detail {
             font-size: 11px;
             margin: 3px 0;
-            color: #4a5568;
+            color: #b0b0b0;
         }
 
         .node-type-badge {
@@ -509,20 +501,21 @@
             position: absolute;
             top: 10px;
             left: 240px;
-            background: white;
+            background: #2d2d2d;
             padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
             z-index: 1000;
             max-width: 320px;
             max-height: 85vh;
             overflow-y: auto;
+            border: 1px solid #404040;
         }
 
         .weather-panel h3 {
             font-size: 16px;
             margin-bottom: 10px;
-            color: #1a365d;
+            color: #e0e0e0;
         }
 
         .weather-current {
@@ -556,13 +549,13 @@
         .weather-forecast {
             margin-top: 12px;
             padding-top: 12px;
-            border-top: 1px solid #eee;
+            border-top: 1px solid #404040;
         }
 
         .weather-forecast h4 {
             font-size: 13px;
             margin-bottom: 8px;
-            color: #1a365d;
+            color: #e0e0e0;
         }
 
         .forecast-item {
@@ -571,19 +564,20 @@
             align-items: center;
             padding: 8px;
             margin: 4px 0;
-            background: #f7fafc;
+            background: #1a1a1a;
             border-radius: 4px;
             font-size: 12px;
+            border: 1px solid #404040;
         }
 
         .forecast-item .forecast-day {
             font-weight: 600;
-            color: #2d3748;
+            color: #e0e0e0;
             min-width: 80px;
         }
 
         .forecast-item .forecast-temp {
-            color: #4a5568;
+            color: #b0b0b0;
             font-weight: 500;
         }
 
@@ -600,14 +594,14 @@
         .weather-loading {
             text-align: center;
             padding: 20px;
-            color: #718096;
+            color: #a0aec0;
             font-size: 12px;
         }
 
         .weather-error {
             text-align: center;
             padding: 20px;
-            color: #e53e3e;
+            color: #fc8181;
             font-size: 12px;
         }
 
@@ -619,9 +613,10 @@
         .weather-overlay-toggle {
             margin-top: 8px;
             padding: 8px;
-            background: #f7fafc;
+            background: #1a1a1a;
             border-radius: 4px;
             font-size: 11px;
+            border: 1px solid #404040;
         }
 
         .weather-overlay-toggle label {
@@ -641,15 +636,16 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: white;
+            background: #2d2d2d;
             padding: 20px;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
             z-index: 2000;
             max-width: 500px;
             max-height: 80vh;
             overflow-y: auto;
             display: none;
+            border: 1px solid #404040;
         }
 
         .forecast-popup.show {
@@ -659,7 +655,7 @@
         .forecast-popup h3 {
             font-size: 18px;
             margin-bottom: 15px;
-            color: #1a365d;
+            color: #e0e0e0;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -746,21 +742,22 @@
             position: absolute;
             bottom: 10px;
             left: 10px;
-            background: white;
+            background: #2d2d2d;
             padding: 12px;
             border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
             z-index: 1000;
             width: 380px;
             max-height: 450px;
             display: flex;
             flex-direction: column;
+            border: 1px solid #404040;
         }
 
         .ai-panel h3 {
             font-size: 14px;
             margin: 0;
-            color: #1a365d;
+            color: #e0e0e0;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -797,11 +794,12 @@
         }
 
         .ai-metrics {
-            background: #f7fafc;
+            background: #1a1a1a;
             padding: 8px;
             border-radius: 4px;
             margin-bottom: 8px;
             font-size: 11px;
+            border: 1px solid #404040;
         }
 
         .ai-metrics .metric-row {
@@ -811,12 +809,12 @@
         }
 
         .ai-metrics .metric-label {
-            color: #718096;
+            color: #a0aec0;
         }
 
         .ai-metrics .metric-value {
             font-weight: 600;
-            color: #2d3748;
+            color: #e0e0e0;
         }
 
         .ai-metrics .risk-low {
@@ -837,9 +835,10 @@
             max-height: 200px;
             margin-bottom: 8px;
             padding: 8px;
-            background: #edf2f7;
+            background: #1a1a1a;
             border-radius: 4px;
             font-size: 12px;
+            border: 1px solid #404040;
         }
 
         .ai-message {
@@ -856,14 +855,15 @@
         }
 
         .ai-message.assistant {
-            background: white;
-            color: #2d3748;
-            border: 1px solid #e2e8f0;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            border: 1px solid #404040;
         }
 
         .ai-message.error {
-            background: #fed7d7;
-            color: #c53030;
+            background: #4a1a1a;
+            color: #fc8181;
+            border: 1px solid #7a2a2a;
         }
 
         .ai-input-area {
@@ -874,14 +874,20 @@
         .ai-input {
             flex: 1;
             padding: 8px 10px;
-            border: 1px solid #e2e8f0;
+            border: 1px solid #404040;
             border-radius: 4px;
             font-size: 12px;
+            background: #1a1a1a;
+            color: #e0e0e0;
         }
 
         .ai-input:focus {
             outline: none;
             border-color: #3182ce;
+        }
+
+        .ai-input::placeholder {
+            color: #606060;
         }
 
         .ai-send-btn {
@@ -912,16 +918,17 @@
 
         .ai-quick-btn {
             padding: 4px 8px;
-            background: #edf2f7;
-            border: 1px solid #e2e8f0;
+            background: #1a1a1a;
+            border: 1px solid #404040;
             border-radius: 4px;
             font-size: 10px;
             cursor: pointer;
-            color: #4a5568;
+            color: #b0b0b0;
         }
 
         .ai-quick-btn:hover {
-            background: #e2e8f0;
+            background: #2d2d2d;
+            border-color: #606060;
         }
 
         /* Collapsible Panel Styles */
@@ -935,12 +942,12 @@
         .panel-header h3 {
             margin: 0;
             font-size: 14px;
-            color: #1a365d;
+            color: #e0e0e0;
         }
 
         .collapse-btn {
-            background: #edf2f7;
-            border: 1px solid #e2e8f0;
+            background: #1a1a1a;
+            border: 1px solid #404040;
             border-radius: 4px;
             width: 24px;
             height: 24px;
@@ -949,13 +956,14 @@
             align-items: center;
             justify-content: center;
             font-size: 12px;
-            color: #4a5568;
+            color: #b0b0b0;
             transition: all 0.2s ease;
         }
 
         .collapse-btn:hover {
-            background: #e2e8f0;
-            color: #2d3748;
+            background: #2d2d2d;
+            color: #e0e0e0;
+            border-color: #606060;
         }
 
         .panel-content {
@@ -974,11 +982,231 @@
         .panel.collapsed .panel-header {
             margin-bottom: 0;
         }
+
+        /* Theme toggle button */
+        .theme-toggle {
+            position: absolute;
+            top: 10px;
+            right: 300px;
+            z-index: 1000;
+            background: #2d2d2d;
+            border: 1px solid #404040;
+            border-radius: 8px;
+            padding: 10px 15px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #e0e0e0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            transition: all 0.2s ease;
+        }
+
+        .theme-toggle:hover {
+            background: #3d3d3d;
+            border-color: #606060;
+        }
+
+        .theme-toggle.light-theme {
+            background: white;
+            border-color: #e2e8f0;
+            color: #2d3748;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .theme-toggle.light-theme:hover {
+            background: #f7fafc;
+            border-color: #cbd5e0;
+        }
+
+        /* Dark theme for Leaflet popups */
+        .leaflet-popup-content-wrapper {
+            background: #2d2d2d;
+            color: #e0e0e0;
+            border: 1px solid #404040;
+        }
+
+        .leaflet-popup-tip {
+            background: #2d2d2d;
+        }
+
+        .leaflet-popup-close-button {
+            color: #e0e0e0;
+        }
+
+        .leaflet-popup-close-button:hover {
+            color: #ffffff;
+        }
+
+        /* Ensure all text in panels is visible */
+        .rail-stats strong {
+            color: #e0e0e0;
+        }
+
+        .forecast-content {
+            color: #e0e0e0;
+        }
+
+        /* Light theme panel styles */
+        body.light-theme .info-panel,
+        body.light-theme .forecast-panel,
+        body.light-theme .rail-panel,
+        body.light-theme .weather-panel,
+        body.light-theme .ai-panel {
+            background: white;
+            border-color: #e2e8f0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        body.light-theme .info-panel h2,
+        body.light-theme .forecast-panel h3,
+        body.light-theme .rail-panel h3,
+        body.light-theme .weather-panel h3,
+        body.light-theme .ai-panel h3,
+        body.light-theme .panel-header h3 {
+            color: #1a365d;
+        }
+
+        body.light-theme .info-panel p,
+        body.light-theme .forecast-label,
+        body.light-theme .rail-popup .detail,
+        body.light-theme .node-popup .detail,
+        body.light-theme .vessel-popup .detail {
+            color: #4a5568;
+        }
+
+        body.light-theme .ship-count,
+        body.light-theme .rail-stats,
+        body.light-theme .forecast-row,
+        body.light-theme .forecast-summary,
+        body.light-theme .ai-metrics,
+        body.light-theme .ai-chat-area,
+        body.light-theme .forecast-item {
+            background: #f7fafc;
+            border-color: #e2e8f0;
+        }
+
+        body.light-theme .ship-count strong,
+        body.light-theme .rail-stats strong,
+        body.light-theme .rail-stats,
+        body.light-theme .rail-stats div,
+        body.light-theme .forecast-summary,
+        body.light-theme .ai-metrics .metric-value,
+        body.light-theme .forecast-item .forecast-day {
+            color: #2d3748;
+        }
+
+        body.light-theme .rail-toggle label {
+            color: #2d3748;
+        }
+
+        body.light-theme .status {
+            color: #718096;
+        }
+
+        body.light-theme .status.loading {
+            color: #3182ce;
+        }
+
+        body.light-theme .status.error {
+            color: #e53e3e;
+        }
+
+        body.light-theme .status.success {
+            color: #38a169;
+        }
+
+        body.light-theme .controls {
+            border-top-color: #e2e8f0;
+        }
+
+        body.light-theme .forecast-stats,
+        body.light-theme .weather-forecast {
+            border-top-color: #e2e8f0;
+        }
+
+        body.light-theme .forecast-stats {
+            color: #718096;
+        }
+
+        body.light-theme .ai-input {
+            background: white;
+            border-color: #e2e8f0;
+            color: #2d3748;
+        }
+
+        body.light-theme .ai-quick-btn {
+            background: #edf2f7;
+            border-color: #e2e8f0;
+            color: #4a5568;
+        }
+
+        body.light-theme .ai-quick-btn:hover {
+            background: #e2e8f0;
+        }
+
+        body.light-theme .ai-message.assistant {
+            background: white;
+            color: #2d3748;
+            border-color: #e2e8f0;
+        }
+
+        body.light-theme .collapse-btn {
+            background: #edf2f7;
+            border-color: #e2e8f0;
+            color: #4a5568;
+        }
+
+        body.light-theme .collapse-btn:hover {
+            background: #e2e8f0;
+            color: #2d3748;
+        }
+
+        body.light-theme .legend-item {
+            color: #2d3748;
+        }
+
+        body.light-theme .leaflet-popup-content-wrapper {
+            background: white;
+            color: #2d3748;
+            border-color: #e2e8f0;
+        }
+
+        body.light-theme .leaflet-popup-tip {
+            background: white;
+        }
+
+        body.light-theme .leaflet-popup-close-button {
+            color: #4a5568;
+        }
+
+        body.light-theme .vessel-popup h3,
+        body.light-theme .rail-popup h4,
+        body.light-theme .node-popup h4 {
+            color: #1a365d;
+        }
+
+        body.light-theme .data-source {
+            background: #fffbeb !important;
+            border-color: #fde68a !important;
+            color: #92400e !important;
+        }
+
+        body.light-theme .data-source span {
+            color: #78716c !important;
+        }
     </style>
 </head>
 
 <body>
     <div id="map"></div>
+
+    <!-- Theme Toggle Button -->
+    <div class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark/light theme">
+        <span id="themeIcon">🌙</span>
+        <span id="themeText">Dark Theme</span>
+    </div>
 
     <!-- AI Analytics Panel -->
     <div class="ai-panel panel" id="aiPanel">
@@ -1050,20 +1278,6 @@
         </div>
     </div>
 
-    <!-- Weather Panel -->
-    <div class="weather-panel panel" id="weatherPanel">
-        <div class="panel-header">
-            <h3>🌤️ Weather</h3>
-            <button class="collapse-btn" onclick="togglePanel('weatherPanel')" title="Toggle panel">−</button>
-        </div>
-        <div class="panel-content" id="weatherPanelContent">
-            <div id="weatherContent">
-                <div class="weather-loading">Loading weather data...</div>
-            </div>
-            <button class="btn weather-refresh-btn" onclick="loadWeatherData()">🔄 Refresh Weather</button>
-        </div>
-    </div>
-
     <!-- Map Controls Panel -->
     <div class="rail-panel panel" id="mapControlsPanel">
         <div class="panel-header">
@@ -1092,7 +1306,7 @@
                 <div><strong>Rail Nodes:</strong> <span id="nodeCount">0</span></div>
                 <div><strong>Stations:</strong> <span id="stationCount">0</span></div>
             </div>
-            <div class="legend" style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">
+            <div class="legend" style="margin-top:8px; padding-top:8px; border-top:1px solid #404040;">
                 <div class="legend-item"><span class="legend-line rail-up"></span> Union Pacific</div>
                 <div class="legend-item"><span class="legend-line rail-bnsf"></span> BNSF Railway</div>
                 <div class="legend-item"><span class="legend-line rail-other"></span> Other (USG, TCT, etc.)</div>
@@ -1124,9 +1338,9 @@
             <div id="status" class="status">Ready to load vessels</div>
 
             <div class="data-source"
-                style="margin-top:10px; padding:8px; background:#fffbeb; border-radius:4px; font-size:10px; color:#92400e;">
+                style="margin-top:10px; padding:8px; background:#1a1a1a; border-radius:4px; font-size:10px; color:#d4a574; border:1px solid #404040;">
                 <strong>📡 Data Mode:</strong> <span id="dataMode">Simulated</span><br>
-                <span style="color:#78716c;">Ships positioned along actual shipping lanes</span>
+                <span style="color:#a0a0a0;">Ships positioned along actual shipping lanes</span>
             </div>
 
             <div class="legend">
@@ -1134,7 +1348,7 @@
                 <div class="legend-item"><span class="legend-dot terminal"></span> Terminals</div>
                 <div class="legend-item"><span class="legend-dot container"></span> Container Facilities</div>
                 <div class="legend-item"><span class="legend-dot facility"></span> Other Facilities</div>
-                <div class="legend-item" style="margin-top:5px; padding-top:5px; border-top:1px solid #eee;"><span
+                <div class="legend-item" style="margin-top:5px; padding-top:5px; border-top:1px solid #404040;"><span
                         class="legend-line rail-up" style="display:inline-block;"></span> Rail Network</div>
             </div>
         </div>
@@ -1143,20 +1357,14 @@
     <!-- Ship Arrival Forecast Panel -->
     <div class="forecast-panel panel" id="forecastPanel">
         <div class="panel-header">
-            <h3 style="margin:0;">72-Hour Ship Forecast</h3>
+            <h3 style="margin:0;">📅 72-Hour Ship Forecast</h3>
             <button class="collapse-btn" onclick="togglePanel('forecastPanel')" title="Toggle panel">−</button>
         </div>
         <div class="panel-content" id="forecastPanelContent">
             <div id="forecastContent">
-                <div style="color:#718096; font-style:italic;">Loading forecast...</div>
+                <div style="color:#a0aec0; font-style:italic;">Loading forecast...</div>
             </div>
             <div class="forecast-stats" id="forecastStats"></div>
-            
-            <!-- Rail Node Analysis Section -->
-            <button class="rail-analysis-btn" id="railAnalysisBtn" onclick="analyzeRailNodes()">
-                Analyze Rail Node Capacity
-            </button>
-            <div class="rail-analysis-results" id="railAnalysisResults" style="display:none;"></div>
         </div>
     </div>
 
@@ -1173,10 +1381,107 @@
             maxBoundsViscosity: 1.0  // Prevent panning outside bounds
         }).setView([29.6, -94.85], 11);
 
-        // Add OpenStreetMap tiles
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+        // Theme state
+        let isDarkTheme = true;
+        let currentTileLayer = null;
+
+        // Initialize with dark theme
+        function initMapTheme() {
+            if (isDarkTheme) {
+                applyDarkTheme();
+            } else {
+                applyLightTheme();
+            }
+        }
+
+        // Apply dark theme
+        function applyDarkTheme() {
+            // Remove existing tile layer
+            if (currentTileLayer) {
+                map.removeLayer(currentTileLayer);
+            }
+
+            // Add OpenStreetMap with dark filter
+            currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            });
+            currentTileLayer.addTo(map);
+
+            // CSS class will handle the filter automatically
+
+            // Update container background
+            const container = document.querySelector('.leaflet-container');
+            if (container) {
+                container.style.backgroundColor = '#0a0a0a';
+            }
+            
+            // Update body background
+            document.body.style.background = '#1a1a1a';
+            document.body.style.color = '#e0e0e0';
+
+            // Update toggle button
+            const toggle = document.getElementById('themeToggle');
+            if (toggle) {
+                toggle.classList.remove('light-theme');
+                toggle.querySelector('#themeIcon').textContent = '🌙';
+                toggle.querySelector('#themeText').textContent = 'Dark Theme';
+            }
+
+            // Apply dark panel styles
+            document.body.classList.add('dark-theme');
+            document.body.classList.remove('light-theme');
+        }
+
+        // Apply light theme
+        function applyLightTheme() {
+            // Remove existing tile layer
+            if (currentTileLayer) {
+                map.removeLayer(currentTileLayer);
+            }
+
+            // Add standard OpenStreetMap
+            currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            });
+            currentTileLayer.addTo(map);
+
+            // CSS class will handle removing the filter automatically
+
+            // Update container background
+            const container = document.querySelector('.leaflet-container');
+            if (container) {
+                container.style.backgroundColor = '#f4f4f4';
+            }
+            
+            // Update body background
+            document.body.style.background = '#ffffff';
+            document.body.style.color = '#2d3748';
+
+            // Update toggle button
+            const toggle = document.getElementById('themeToggle');
+            if (toggle) {
+                toggle.classList.add('light-theme');
+                toggle.querySelector('#themeIcon').textContent = '☀️';
+                toggle.querySelector('#themeText').textContent = 'Light Theme';
+            }
+
+            // Apply light panel styles
+            document.body.classList.add('light-theme');
+            document.body.classList.remove('dark-theme');
+        }
+
+        // Toggle theme
+        function toggleTheme() {
+            isDarkTheme = !isDarkTheme;
+            if (isDarkTheme) {
+                applyDarkTheme();
+            } else {
+                applyLightTheme();
+            }
+        }
+
+        // Initialize map with dark theme
+        initMapTheme();
 
         // Layer groups
         const facilitiesLayer = L.layerGroup().addTo(map);
@@ -1356,7 +1661,13 @@
 
                     if (vessels.length > 0) {
                         document.getElementById('dataMode').textContent = 'Live (ArcGIS)';
-                        document.getElementById('dataMode').parentElement.style.background = '#d1fae5';
+                        if (isDarkTheme) {
+                            document.getElementById('dataMode').parentElement.style.background = '#1a2a1a';
+                            document.getElementById('dataMode').parentElement.style.borderColor = '#2a4a2a';
+                        } else {
+                            document.getElementById('dataMode').parentElement.style.background = '#d1fae5';
+                            document.getElementById('dataMode').parentElement.style.borderColor = '#86efac';
+                        }
                         displayVessels(vessels);
                         refreshBtn.disabled = false;
                         return;
@@ -1367,7 +1678,13 @@
             } catch (error) {
                 console.log('API unavailable, using simulation:', error.message);
                 document.getElementById('dataMode').textContent = 'Simulated Demo';
-                document.getElementById('dataMode').parentElement.style.background = '#fffbeb';
+                if (isDarkTheme) {
+                    document.getElementById('dataMode').parentElement.style.background = '#2a2a1a';
+                    document.getElementById('dataMode').parentElement.style.borderColor = '#4a4a2a';
+                } else {
+                    document.getElementById('dataMode').parentElement.style.background = '#fffbeb';
+                    document.getElementById('dataMode').parentElement.style.borderColor = '#fde68a';
+                }
                 displayVessels(generateSimulatedVessels());
             }
 
@@ -1395,7 +1712,13 @@
                 aisSocket.send(JSON.stringify(subscribeMsg));
                 setStatus('Connected to live AIS stream', 'success');
                 document.getElementById('dataMode').textContent = 'Live (AISStream)';
-                document.getElementById('dataMode').parentElement.style.background = '#d1fae5';
+                if (isDarkTheme) {
+                    document.getElementById('dataMode').parentElement.style.background = '#1a2a1a';
+                    document.getElementById('dataMode').parentElement.style.borderColor = '#2a4a2a';
+                } else {
+                    document.getElementById('dataMode').parentElement.style.background = '#d1fae5';
+                    document.getElementById('dataMode').parentElement.style.borderColor = '#86efac';
+                }
             };
 
             const liveVessels = new Map();
@@ -1646,7 +1969,7 @@
         function updateForecastPanel(vessels) {
             if (!vessels || vessels.length === 0) {
                 document.getElementById('forecastContent').innerHTML =
-                    '<div style="color:#718096; font-style:italic;">No vessels to forecast</div>';
+                    '<div style="color:#a0aec0; font-style:italic;">No vessels to forecast</div>';
                 return;
             }
 
@@ -2175,7 +2498,7 @@
                             <span>🌡️ Feels: 80°F</span>
                         </div>
                     </div>
-                    <div style="margin-top:8px; padding:8px; background:#fffbeb; border-radius:4px; font-size:10px; color:#92400e;">
+                    <div style="margin-top:8px; padding:8px; background:#2a2a1a; border-radius:4px; font-size:10px; color:#d4a574; border:1px solid #4a4a2a;">
                         <strong>⚠️ Demo Mode:</strong> Add OpenWeatherMap API key for live data
                     </div>
                 `;
@@ -2298,12 +2621,18 @@
                 }
 
                 // Create rain overlay layer
+                // Use transparent PNG for error tiles to avoid green sections
+                const transparentTile = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+                
                 if (WEATHER_API_KEY) {
                     // Use OpenWeatherMap precipitation layer (best quality, requires API key)
                     rainOverlayLayer = L.tileLayer(`https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${WEATHER_API_KEY}`, {
                         attribution: 'Rain data © OpenWeatherMap',
                         opacity: 0.65,
-                        maxZoom: 19
+                        maxZoom: 19,
+                        errorTileUrl: transparentTile,
+                        tileSize: 256,
+                        zoomOffset: 0
                     });
                 } else {
                     // Use RainViewer API (free, no key required)
@@ -2315,23 +2644,27 @@
                         attribution: 'Rain data © RainViewer.com',
                         opacity: 0.7,
                         maxZoom: 19,
-                        errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+                        errorTileUrl: transparentTile,
+                        tileSize: 256,
+                        zoomOffset: 0,
+                        crossOrigin: true
                     });
                 }
+                
+                // Handle tile errors - hide failed tiles instead of showing green
+                rainOverlayLayer.on('tileerror', function(error, tile) {
+                    if (tile && tile.el) {
+                        tile.el.style.display = 'none';
+                    }
+                });
 
                 // Add overlay to map
                 rainOverlayLayer.addTo(map);
-
-                // Show forecast popup
-                showForecastPopup();
             } else {
                 // Remove overlay from map
                 if (rainOverlayLayer && map.hasLayer(rainOverlayLayer)) {
                     map.removeLayer(rainOverlayLayer);
                 }
-
-                // Hide forecast popup
-                closeForecastPopup();
             }
         }
 
@@ -2411,7 +2744,6 @@
 
         // Load initial data
         loadAISData();
-        loadWeatherData();
 
         // ========== AI ANALYTICS INTEGRATION ==========
 
@@ -2527,93 +2859,6 @@
         function askAI(question) {
             document.getElementById('aiInput').value = question;
             sendAIMessage();
-        }
-
-        // Analyze Rail Node Capacity with Ollama
-        async function analyzeRailNodes() {
-            const btn = document.getElementById('railAnalysisBtn');
-            const resultsDiv = document.getElementById('railAnalysisResults');
-            
-            // Get current ship count from forecast
-            let shipCount = 0;
-            if (typeof shipForecaster !== 'undefined') {
-                const summary = shipForecaster.getSummary();
-                shipCount = summary.total72Hours || 15;
-            }
-
-            btn.disabled = true;
-            btn.textContent = 'Analyzing...';
-            resultsDiv.style.display = 'block';
-            resultsDiv.innerHTML = '<div style="color:#718096;font-style:italic;text-align:center;padding:10px;">Querying AI for rail node analysis...</div>';
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/rail-analysis?ship_count=${shipCount}&forecast_window=72`, {
-                    method: 'GET',
-                    signal: AbortSignal.timeout(120000) // 2 min timeout for LLM
-                });
-
-                if (!response.ok) throw new Error('API error');
-
-                const data = await response.json();
-                
-                // Try to parse the LLM response as JSON
-                let analysis = null;
-                try {
-                    // Clean up the response - remove markdown code blocks if present
-                    let cleanResponse = data.llm_response || '';
-                    cleanResponse = cleanResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-                    analysis = JSON.parse(cleanResponse);
-                } catch (parseErr) {
-                    console.log('Could not parse as JSON, displaying raw response');
-                }
-
-                if (analysis && analysis.nodes) {
-                    // Render structured results
-                    let html = '<div class="rail-analysis-section">';
-                    html += `<div style="font-size:10px;color:#718096;margin-bottom:8px;">Analysis for ${shipCount} ships over 72 hours</div>`;
-                    
-                    analysis.nodes.forEach(node => {
-                        const statusClass = (node.status || 'unknown').toLowerCase();
-                        html += `
-                            <div class="rail-node-card">
-                                <div class="node-header">
-                                    <span class="node-name">${node.node_name || node.name || 'Unknown'}</span>
-                                    <span class="node-status ${statusClass}">${node.status || 'N/A'}</span>
-                                </div>
-                                <div class="node-details">
-                                    <span>Load: ${node.load_pressure_kg_hr || node.load || 'N/A'}</span>
-                                    <span>Capacity: ${(node.capacity_factor * 100 || node.capacity || 'N/A')}%</span>
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    if (analysis.summary) {
-                        html += `<div style="margin-top:8px;padding:6px;background:#1a1a2e;border-radius:4px;font-size:10px;color:#a0aec0;">${analysis.summary}</div>`;
-                    }
-                    
-                    html += '</div>';
-                    resultsDiv.innerHTML = html;
-                } else {
-                    // Show raw LLM response
-                    resultsDiv.innerHTML = `
-                        <div class="rail-analysis-section">
-                            <div style="font-size:10px;color:#718096;margin-bottom:8px;">Raw Analysis Result:</div>
-                            <div style="font-size:11px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">${data.llm_response || 'No response'}</div>
-                        </div>
-                    `;
-                }
-            } catch (e) {
-                console.error('Rail analysis error:', e);
-                resultsDiv.innerHTML = `
-                    <div style="color:#fc8181;font-size:11px;padding:8px;">
-                        Could not complete rail analysis. Ensure API server is running.
-                    </div>
-                `;
-            }
-
-            btn.disabled = false;
-            btn.textContent = 'Analyze Rail Node Capacity';
         }
 
         // Initialize AI panel
