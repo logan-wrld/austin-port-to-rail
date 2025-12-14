@@ -2036,6 +2036,9 @@
             if (typeof ShipTracker !== 'undefined') {
                 ShipTracker.updateFromAIS(vessels);
                 updateTrackerPanel();
+                
+                // Sync to server every update (creates ship_tracker.json)
+                ShipTracker.syncToServer(API_BASE_URL);
             }
 
             // Update forecast panel with ship data
