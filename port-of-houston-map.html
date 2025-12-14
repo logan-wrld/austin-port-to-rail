@@ -1500,6 +1500,9 @@
         let railNodes = [];
         let nodeMap = new Map(); // Map of nodeId -> {lat, lng}
 
+        // Store all vessels for count recalculation on map move/zoom
+        let allVessels = [];
+
         // Auto-refresh state
         let autoRefreshInterval = null;
         let isAutoRefreshing = false;
@@ -1722,6 +1725,21 @@
             };
 
             const liveVessels = new Map();
+            let updateTimeout = null;
+
+            // Function to update display with current vessel data
+            const updateDisplay = () => {
+                // Cleanup old vessels (not seen in 5 minutes)
+                const VESSEL_TIMEOUT = 5 * 60 * 1000;
+                const now = Date.now();
+                for (const [mmsi, vessel] of liveVessels.entries()) {
+                    if (now - (vessel.lastSeen || 0) > VESSEL_TIMEOUT) {
+                        liveVessels.delete(mmsi);
+                    }
+                }
+                // Update display with actual vessel count from AIS data
+                displayVessels(Array.from(liveVessels.values()));
+            };
 
             aisSocket.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
@@ -1744,29 +1762,26 @@
                         lastSeen: Date.now()
                     });
 
-                    // Cleanup old vessels (not seen in 5 minutes)
-                    const VESSEL_TIMEOUT = 5 * 60 * 1000;
-                    const now = Date.now();
-                    for (const [mmsi, vessel] of liveVessels.entries()) {
-                        if (now - (vessel.lastSeen || 0) > VESSEL_TIMEOUT) {
-                            liveVessels.delete(mmsi);
-                        }
-                    }
-
-                    // Update display every 10 vessels received
-                    if (liveVessels.size % 10 === 0) {
-                        displayVessels(Array.from(liveVessels.values()));
-                    }
+                    // Debounced update - update display after a short delay to batch updates
+                    if (updateTimeout) clearTimeout(updateTimeout);
+                    updateTimeout = setTimeout(updateDisplay, 500);
                 }
             };
 
+            // Periodic update to ensure count stays current and cleanup happens
+            const periodicUpdate = setInterval(updateDisplay, 5000);
+
             aisSocket.onerror = (error) => {
                 console.error('AIS WebSocket error:', error);
+                if (updateTimeout) clearTimeout(updateTimeout);
+                if (periodicUpdate) clearInterval(periodicUpdate);
                 setStatus('Stream error, using simulation', 'error');
                 displayVessels(generateSimulatedVessels());
             };
 
             aisSocket.onclose = () => {
+                if (updateTimeout) clearTimeout(updateTimeout);
+                if (periodicUpdate) clearInterval(periodicUpdate);
                 setStatus('Stream disconnected', '');
             };
 
@@ -1918,9 +1933,19 @@
 
         // Display vessels on map
         function displayVessels(vessels) {
+            // Store all vessels for count recalculation
+            allVessels = vessels;
+            
             shipsLayer.clearLayers();
+            
+            // Get current map visible bounds for counting
+            const bounds = map.getBounds();
+            const southWest = bounds.getSouthWest();
+            const northEast = bounds.getNorthEast();
+            
             let count = 0;
 
+            // Add all vessels to the map (so they appear when you pan)
             vessels.forEach(v => {
                 // Handle different API response formats
                 const lat = v.lat || v.geometry?.coordinates?.[1] || v.properties?.latitude;
@@ -1937,6 +1962,7 @@
 
                 if (!lat || !lng) return;
 
+                // Add marker for all vessels (they'll be visible when you pan to them)
                 const icon = createShipIcon(heading, type);
                 const marker = L.marker([lat, lng], { icon: icon }).addTo(shipsLayer);
 
@@ -1955,7 +1981,11 @@
                     </div>
                 `);
 
-                count++;
+                // Only count vessels within visible map bounds
+                if (lat >= southWest.lat && lat <= northEast.lat &&
+                    lng >= southWest.lng && lng <= northEast.lng) {
+                    count++;
+                }
             });
 
             document.getElementById('shipCount').textContent = count;
@@ -1963,6 +1993,32 @@
 
             // Update forecast panel with ship data
             updateForecastPanel(vessels);
+        }
+
+        // Update vessel count based on visible map bounds
+        function updateVesselCount() {
+            if (allVessels.length === 0) return;
+            
+            const bounds = map.getBounds();
+            const southWest = bounds.getSouthWest();
+            const northEast = bounds.getNorthEast();
+            
+            let count = 0;
+            
+            allVessels.forEach(v => {
+                const lat = v.lat || v.geometry?.coordinates?.[1] || v.properties?.latitude;
+                const lng = v.lng || v.geometry?.coordinates?.[0] || v.properties?.longitude;
+                
+                if (!lat || !lng) return;
+                
+                // Check if vessel is within visible map bounds
+                if (lat >= southWest.lat && lat <= northEast.lat &&
+                    lng >= southWest.lng && lng <= northEast.lng) {
+                    count++;
+                }
+            });
+            
+            document.getElementById('shipCount').textContent = count;
         }
 
         // Update the 72-hour forecast panel
@@ -2437,6 +2493,13 @@
             if (checkbox && checkbox.checked && map.hasLayer(nodesLayer)) {
                 drawRailNodes();
             }
+            // Update vessel count when zoom changes
+            updateVesselCount();
+        });
+
+        // Update vessel count when map is panned
+        map.on('moveend', function () {
+            updateVesselCount();
         });
 
         // ========== WEATHER API INTEGRATION ==========
