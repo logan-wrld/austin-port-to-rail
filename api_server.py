@@ -466,6 +466,7 @@ def update_ship_tracker():
 @app.route('/api/ship-tracker/vessels', methods=['GET'])
 def get_tracked_vessels():
     """Get all tracked vessels with optional status filter"""
+    # Always reload from file to get fresh data (no caching)
     data = load_ship_tracker()
     status_filter = request.args.get('status')
     
