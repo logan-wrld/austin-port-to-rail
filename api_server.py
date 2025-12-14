@@ -114,6 +114,82 @@ def health_check():
     """Health check endpoint"""
     return jsonify({"status": "ok", "ollama_url": OLLAMA_URL, "model": OLLAMA_MODEL})
 
+@app.route('/api/ais-vessels', methods=['GET'])
+def get_ais_vessels():
+    """
+    Proxy endpoint for ArcGIS AIS vessel data.
+    Avoids CORS issues by fetching server-side.
+    """
+    try:
+        # Bounding box parameters (can be overridden via query params)
+        min_lat = request.args.get('minLat', 27.5, type=float)
+        max_lat = request.args.get('maxLat', 30.0, type=float)
+        min_lon = request.args.get('minLon', -96.0, type=float)
+        max_lon = request.args.get('maxLon', -93.0, type=float)
+        
+        # ArcGIS AIS Vessel Tracks API
+        arcgis_url = (
+            f"https://services.arcgis.com/LBbVDC0hKPAnLRpO/arcgis/rest/services/"
+            f"AIS_Vessel_Tracks/FeatureServer/0/query?"
+            f"where=1%3D1&geometry={min_lon}%2C{min_lat}%2C{max_lon}%2C{max_lat}"
+            f"&geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects"
+            f"&outFields=*&returnGeometry=true&f=json"
+        )
+        
+        response = requests.get(arcgis_url, timeout=15)
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if 'features' in data and len(data['features']) > 0:
+                # Transform to simplified vessel format
+                vessels = []
+                for f in data['features']:
+                    attrs = f.get('attributes', {})
+                    geom = f.get('geometry', {})
+                    
+                    vessel = {
+                        'lat': geom.get('y') or (geom.get('points', [[0, 0]])[0][1] if 'points' in geom else None),
+                        'lng': geom.get('x') or (geom.get('points', [[0, 0]])[0][0] if 'points' in geom else None),
+                        'name': attrs.get('VesselName') or attrs.get('VESSEL_NAME') or attrs.get('SHIPNAME') or 'Unknown',
+                        'mmsi': attrs.get('MMSI') or attrs.get('mmsi') or attrs.get('MMSI_NUMBER') or 'Unknown',
+                        'heading': attrs.get('Heading') or attrs.get('COG') or attrs.get('HEADING') or 0,
+                        'speed': attrs.get('SOG') or attrs.get('Speed') or attrs.get('SPEED') or 0,
+                        'type': attrs.get('VesselType') or attrs.get('VESSEL_TYPE') or attrs.get('SHIPTYPE') or 'Unknown',
+                        'destination': attrs.get('Destination') or attrs.get('DESTINATION') or 'Unknown',
+                        'flag': attrs.get('Flag') or attrs.get('FLAG') or attrs.get('COUNTRY') or 'Unknown',
+                        'length': attrs.get('Length') or attrs.get('LENGTH') or 'Unknown',
+                        'draft': attrs.get('Draft') or attrs.get('DRAFT') or 'Unknown'
+                    }
+                    
+                    if vessel['lat'] and vessel['lng']:
+                        vessels.append(vessel)
+                
+                return jsonify({
+                    'success': True,
+                    'source': 'ArcGIS',
+                    'count': len(vessels),
+                    'vessels': vessels
+                })
+            else:
+                return jsonify({
+                    'success': True,
+                    'source': 'ArcGIS',
+                    'count': 0,
+                    'vessels': [],
+                    'message': 'No vessels in area'
+                })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'ArcGIS returned status {response.status_code}'
+            }), 502
+            
+    except requests.exceptions.Timeout:
+        return jsonify({'success': False, 'error': 'ArcGIS request timed out'}), 504
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/metrics', methods=['GET'])
 def get_metrics():
     """Get current port metrics"""

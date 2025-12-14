@@ -1649,16 +1649,42 @@
             }
 
             try {
-                // Bounding box for Houston/Galveston area
-                const minLat = 29.2;
-                const maxLat = 29.9;
-                const minLon = -95.4;
-                const maxLon = -94.7;
+                // Bounding box for Houston/Galveston area (extended into Gulf)
+                const minLat = 27.5;
+                const maxLat = 30.0;
+                const minLon = -96.0;
+                const maxLon = -93.0;
 
-                // Add timestamp to prevent caching - always fetch fresh data
+                // First try our backend proxy (avoids CORS issues)
+                try {
+                    const proxyResponse = await fetch(
+                        `${API_BASE_URL}/api/ais-vessels?minLat=${minLat}&maxLat=${maxLat}&minLon=${minLon}&maxLon=${maxLon}`,
+                        { signal: AbortSignal.timeout(15000) }
+                    );
+                    
+                    if (proxyResponse.ok) {
+                        const proxyData = await proxyResponse.json();
+                        if (proxyData.success && proxyData.vessels && proxyData.vessels.length > 0) {
+                            console.log(`Loaded ${proxyData.count} vessels via API proxy`);
+                            document.getElementById('dataMode').textContent = 'Live (API Proxy)';
+                            if (isDarkTheme) {
+                                document.getElementById('dataMode').parentElement.style.background = '#1a2a1a';
+                                document.getElementById('dataMode').parentElement.style.borderColor = '#2a4a2a';
+                            } else {
+                                document.getElementById('dataMode').parentElement.style.background = '#d1fae5';
+                                document.getElementById('dataMode').parentElement.style.borderColor = '#86efac';
+                            }
+                            displayVessels(proxyData.vessels);
+                            refreshBtn.disabled = false;
+                            return;
+                        }
+                    }
+                } catch (proxyError) {
+                    console.log('API proxy unavailable, trying direct ArcGIS:', proxyError.message);
+                }
+
+                // Fallback: Try ArcGIS directly (may have CORS issues)
                 const timestamp = Date.now();
-                
-                // Try ArcGIS Maritime service - add cache-busting parameter
                 const response = await fetch(
                     `https://services.arcgis.com/LBbVDC0hKPAnLRpO/arcgis/rest/services/AIS_Vessel_Tracks/FeatureServer/0/query?` +
                     `where=1%3D1&geometry=${minLon}%2C${minLat}%2C${maxLon}%2C${maxLat}&geometryType=esriGeometryEnvelope&` +
