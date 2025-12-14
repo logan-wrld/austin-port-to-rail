@@ -228,16 +228,17 @@ def surge_analysis():
     
     return jsonify(analysis)
 
-@app.route('/api/rail-node-analysis', methods=['POST'])
-def rail_node_analysis():
+@app.route('/api/rail-analysis', methods=['GET'])
+def rail_analysis():
     """
     Analyze rail nodes with inbound freight forecasts using Ollama.
-    Expects JSON with ship_forecast data from the 72-hour forecast.
+    Query params: ship_count, forecast_window (hours)
     Returns structured node status data.
     """
     try:
-        data = request.get_json() or {}
-        ship_forecast = data.get('ship_forecast', {})
+        # Get query parameters
+        ship_count = request.args.get('ship_count', 15, type=int)
+        forecast_window = request.args.get('forecast_window', 72, type=int)
         
         # Load rail data from CSV files
         import pandas as pd
@@ -292,14 +293,15 @@ Sample line data (first 5):
 {tx_lines.head(5).to_string()}
 """
         
-        # Ship forecast context
-        ships_0_24 = ship_forecast.get('0-24h', 0)
-        ships_24_48 = ship_forecast.get('24-48h', 0)
-        ships_48_72 = ship_forecast.get('48-72h', 0)
-        total_ships = ships_0_24 + ships_24_48 + ships_48_72
+        # Ship forecast context - distribute ships across time windows
+        ships_per_window = ship_count // 3
+        ships_0_24 = ships_per_window + (ship_count % 3)
+        ships_24_48 = ships_per_window
+        ships_48_72 = ships_per_window
+        total_ships = ship_count
         
         forecast_context = f"""
-Inbound Ship Forecast (72-hour window):
+Inbound Ship Forecast ({forecast_window}-hour window):
 - 0-24 hours: {ships_0_24} ships
 - 24-48 hours: {ships_24_48} ships  
 - 48-72 hours: {ships_48_72} ships
@@ -308,8 +310,8 @@ Inbound Ship Forecast (72-hour window):
 Estimated freight conversion:
 - Average TEU per ship: 2,500
 - Average weight per TEU: 14,000 kg
-- Total expected freight: {total_ships * 2500 * 14000:,.0f} kg over 72 hours
-- Hourly inbound rate: {(total_ships * 2500 * 14000) / 72:,.0f} kg/hour
+- Total expected freight: {total_ships * 2500 * 14000:,.0f} kg over {forecast_window} hours
+- Hourly inbound rate: {(total_ships * 2500 * 14000) / forecast_window:,.0f} kg/hour
 """
         
         # Build the analysis prompt
@@ -379,7 +381,8 @@ Return JSON in this exact format:
                 "success": True,
                 "analysis": analysis_data,
                 "model": OLLAMA_MODEL,
-                "ship_forecast_input": ship_forecast
+                "ship_count": ship_count,
+                "forecast_window": forecast_window
             })
         else:
             return jsonify({
@@ -409,6 +412,6 @@ if __name__ == '__main__':
     print(f"  GET  /api/forecast - 24-hour forecast")
     print(f"  GET  /api/surge-analysis - Detailed surge analysis")
     print(f"  POST /api/chat - Chat with AI (send JSON: {{\"message\": \"your question\"}})")
-    print(f"  POST /api/rail-node-analysis - Analyze rail nodes with ship forecast")
+    print(f"  GET  /api/rail-analysis - Analyze rail nodes (?ship_count=N&forecast_window=H)")
     
     app.run(host='0.0.0.0', port=5000, debug=True)
