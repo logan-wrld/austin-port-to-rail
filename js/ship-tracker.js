@@ -383,7 +383,7 @@ const ShipTracker = {
     /**
      * Sync data to backend API
      */
-    async syncToServer(apiUrl = 'http://localhost:5000') {
+    async syncToServer(apiUrl = 'http://localhost:5001') {
         try {
             const response = await fetch(`${apiUrl}/api/ship-tracker`, {
                 method: 'POST',
@@ -408,7 +408,7 @@ const ShipTracker = {
     /**
      * Load data from backend API
      */
-    async loadFromServer(apiUrl = 'http://localhost:5000') {
+    async loadFromServer(apiUrl = 'http://localhost:5001') {
         try {
             const response = await fetch(`${apiUrl}/api/ship-tracker`);
             
