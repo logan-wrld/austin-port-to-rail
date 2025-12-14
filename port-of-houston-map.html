@@ -1648,19 +1648,28 @@
                 const data = await response.json();
 
                 if (data.features && data.features.length > 0) {
-                    const vessels = data.features.map(f => ({
-                        lat: f.geometry.y || f.geometry.points?.[0]?.[1],
-                        lng: f.geometry.x || f.geometry.points?.[0]?.[0],
-                        name: f.attributes.VesselName || f.attributes.VESSEL_NAME || 'Unknown Vessel',
-                        mmsi: f.attributes.MMSI || f.attributes.mmsi,
-                        heading: f.attributes.Heading || f.attributes.COG || 0,
-                        speed: f.attributes.SOG || f.attributes.Speed || 0,
-                        type: f.attributes.VesselType || f.attributes.VESSEL_TYPE || 'Cargo',
-                        destination: f.attributes.Destination || 'Unknown',
-                        flag: f.attributes.Flag || '',
-                        length: f.attributes.Length || 'N/A',
-                        draft: f.attributes.Draft || 'N/A'
-                    })).filter(v => v.lat && v.lng);
+                    // Log first feature to see what fields are available
+                    if (data.features.length > 0) {
+                        console.log('ArcGIS API Sample Feature:', data.features[0]);
+                        console.log('Available Attributes:', Object.keys(data.features[0].attributes || {}));
+                    }
+                    
+                    const vessels = data.features.map(f => {
+                        const attrs = f.attributes || {};
+                        return {
+                            lat: f.geometry.y || f.geometry.points?.[0]?.[1],
+                            lng: f.geometry.x || f.geometry.points?.[0]?.[0],
+                            name: attrs.VesselName || attrs.VESSEL_NAME || attrs.SHIPNAME || attrs.name || 'Unknown',
+                            mmsi: attrs.MMSI || attrs.mmsi || attrs.MMSI_NUMBER || 'Unknown',
+                            heading: attrs.Heading || attrs.COG || attrs.HEADING || attrs.heading || 0,
+                            speed: attrs.SOG || attrs.Speed || attrs.SPEED || attrs.speed || 0,
+                            type: attrs.VesselType || attrs.VESSEL_TYPE || attrs.SHIPTYPE || attrs.type || 'Unknown',
+                            destination: attrs.Destination || attrs.DESTINATION || attrs.destination || 'Unknown',
+                            flag: attrs.Flag || attrs.FLAG || attrs.COUNTRY || attrs.flag || 'Unknown',
+                            length: attrs.Length || attrs.LENGTH || attrs.length || 'Unknown',
+                            draft: attrs.Draft || attrs.DRAFT || attrs.draft || 'Unknown'
+                        };
+                    }).filter(v => v.lat && v.lng);
 
                     if (vessels.length > 0) {
                         document.getElementById('dataMode').textContent = 'Live (ArcGIS)';
@@ -1747,18 +1756,25 @@
                     const pos = msg.Message.PositionReport;
                     const meta = msg.MetaData;
 
+                    // Log first message to see what fields are available
+                    if (liveVessels.size === 0) {
+                        console.log('AISStream WebSocket Sample Message:', msg);
+                        console.log('PositionReport fields:', Object.keys(pos || {}));
+                        console.log('MetaData fields:', Object.keys(meta || {}));
+                    }
+
                     liveVessels.set(meta.MMSI, {
-                        mmsi: meta.MMSI,
-                        name: meta.ShipName || `Vessel ${meta.MMSI}`,
+                        mmsi: meta.MMSI || 'Unknown',
+                        name: meta.ShipName || meta.shipName || 'Unknown',
                         lat: pos.Latitude,
                         lng: pos.Longitude,
-                        heading: pos.TrueHeading || pos.Cog || 0,
-                        speed: pos.Sog || 0,
-                        type: meta.ShipType || 'Unknown',
-                        destination: meta.Destination || 'Unknown',
-                        flag: meta.Flag || '',
-                        length: meta.Length || 'N/A',
-                        draft: meta.Draught || 'N/A',
+                        heading: pos.TrueHeading || pos.Cog || pos.Heading || 0,
+                        speed: pos.Sog || pos.Speed || 0,
+                        type: meta.ShipType || meta.shipType || 'Unknown',
+                        destination: meta.Destination || meta.destination || 'Unknown',
+                        flag: meta.Flag || meta.flag || meta.Country || 'Unknown',
+                        length: meta.Length || meta.length || 'Unknown',
+                        draft: meta.Draught || meta.Draft || meta.draft || 'Unknown',
                         lastSeen: Date.now()
                     });
 
@@ -1805,8 +1821,26 @@
             const destinations = ['HOUSTON TX', 'GALVESTON TX', 'TEXAS CITY TX', 'BAYPORT TX', 'BARBOURS CUT TX', 'LA PORTE TX'];
             const flags = ['US', 'PA', 'LR', 'MH', 'SG', 'HK', 'GR', 'MT', 'BS', 'CY', 'NO', 'DK'];
 
+            // Simple hash function to generate deterministic "random" values based on position
+            function hashPosition(lat, lng) {
+                const str = `${lat.toFixed(4)}_${lng.toFixed(4)}`;
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash; // Convert to 32bit integer
+                }
+                return Math.abs(hash);
+            }
+
+            // Deterministic random function based on seed
+            function seededRandom(seed) {
+                const x = Math.sin(seed) * 10000;
+                return x - Math.floor(x);
+            }
+
             const vessels = [];
-            const numVessels = 28 + Math.floor(Math.random() * 12); // More vessels for extended range
+            const numVessels = 35; // Fixed number for consistency
 
             // Define realistic ship positions along the Houston Ship Channel and Galveston Bay
             const shipPositions = [
@@ -1863,68 +1897,55 @@
                 { lat: 29.31, lng: -94.79, heading: 90, zone: 'terminal', speed: 0 }, // Galveston
             ];
 
-            for (let i = 0; i < Math.min(numVessels, shipPositions.length + 5); i++) {
-                let pos;
-                if (i < shipPositions.length) {
-                    pos = shipPositions[i];
-                    // Add small random offset for realism
-                    pos = {
-                        ...pos,
-                        lat: pos.lat + (Math.random() - 0.5) * 0.015,
-                        lng: pos.lng + (Math.random() - 0.5) * 0.015,
-                        heading: pos.heading + (Math.random() - 0.5) * 15
-                    };
-                } else {
-                    // Extra random ships - in Houston/Galveston area
-                    const inBay = Math.random() > 0.5;
-                    if (inBay) {
-                        pos = {
-                            lat: 29.35 + Math.random() * 0.25,
-                            lng: -94.85 + (Math.random() - 0.5) * 0.2,
-                            heading: 300 + Math.random() * 60,
-                            zone: 'bay'
-                        };
-                    } else {
-                        pos = {
-                            lat: 29.68 + Math.random() * 0.08,
-                            lng: -95.00 + (Math.random() - 0.5) * 0.3,
-                            heading: 260 + Math.random() * 40,
-                            zone: 'channel'
-                        };
-                    }
-                }
+            for (let i = 0; i < Math.min(numVessels, shipPositions.length); i++) {
+                const basePos = shipPositions[i];
+                // Use base position for deterministic hash (before any offset)
+                const seed = hashPosition(basePos.lat, basePos.lng);
+                
+                // Add small deterministic offset for realism (based on seed)
+                const pos = {
+                    ...basePos,
+                    lat: basePos.lat + (seededRandom(seed) - 0.5) * 0.015,
+                    lng: basePos.lng + (seededRandom(seed + 1) - 0.5) * 0.015,
+                    heading: basePos.heading + (seededRandom(seed + 2) - 0.5) * 15
+                };
 
-                // Speed based on zone
+                // Speed based on zone (deterministic)
                 let speed;
                 if (pos.speed !== undefined) {
                     speed = pos.speed;
                 } else if (pos.zone === 'terminal') {
-                    speed = Math.random() * 1;
+                    speed = seededRandom(seed + 3) * 1;
                 } else if (pos.zone === 'channel' || pos.zone === 'upper') {
-                    speed = 6 + Math.random() * 6; // 6-12 knots in channel
+                    speed = 6 + seededRandom(seed + 3) * 6; // 6-12 knots in channel
                 } else if (pos.zone === 'bay') {
-                    speed = 10 + Math.random() * 8; // 10-18 knots in bay
+                    speed = 10 + seededRandom(seed + 3) * 8; // 10-18 knots in bay
                 } else {
-                    speed = 8 + Math.random() * 6; // 8-14 knots
+                    speed = 8 + seededRandom(seed + 3) * 6; // 8-14 knots
                 }
 
-                const vesselType = vesselTypes[Math.floor(Math.random() * vesselTypes.length)];
+                // All metadata is deterministic based on position
+                const vesselType = vesselTypes[Math.floor(seededRandom(seed + 4) * vesselTypes.length)];
+                const nameIndex = Math.floor(seededRandom(seed + 5) * vesselNames.length);
+                const destIndex = Math.floor(seededRandom(seed + 6) * destinations.length);
+                const flagIndex = Math.floor(seededRandom(seed + 7) * flags.length);
+                const mmsiBase = 300000000 + Math.floor(seededRandom(seed + 8) * 99999999);
 
                 vessels.push({
-                    mmsi: 300000000 + Math.floor(Math.random() * 99999999),
-                    name: vesselNames[i % vesselNames.length],
+                    mmsi: mmsiBase,
+                    name: vesselNames[nameIndex],
                     lat: pos.lat,
                     lng: pos.lng,
                     heading: pos.heading,
                     speed: speed,
                     type: vesselType,
-                    destination: destinations[Math.floor(Math.random() * destinations.length)],
-                    flag: flags[Math.floor(Math.random() * flags.length)],
-                    length: vesselType.includes('Container') ? 300 + Math.floor(Math.random() * 100) :
-                        vesselType.includes('Tanker') ? 200 + Math.floor(Math.random() * 150) :
-                            vesselType.includes('Tug') ? 25 + Math.floor(Math.random() * 15) :
-                                100 + Math.floor(Math.random() * 200),
-                    draft: vesselType.includes('Tanker') ? 12 + Math.random() * 8 : 8 + Math.random() * 8
+                    destination: destinations[destIndex],
+                    flag: flags[flagIndex],
+                    length: vesselType.includes('Container') ? 300 + Math.floor(seededRandom(seed + 9) * 100) :
+                        vesselType.includes('Tanker') ? 200 + Math.floor(seededRandom(seed + 9) * 150) :
+                            vesselType.includes('Tug') ? 25 + Math.floor(seededRandom(seed + 9) * 15) :
+                                100 + Math.floor(seededRandom(seed + 9) * 200),
+                    draft: vesselType.includes('Tanker') ? 12 + seededRandom(seed + 10) * 8 : 8 + seededRandom(seed + 10) * 8
                 });
             }
 
@@ -1950,15 +1971,15 @@
                 // Handle different API response formats
                 const lat = v.lat || v.geometry?.coordinates?.[1] || v.properties?.latitude;
                 const lng = v.lng || v.geometry?.coordinates?.[0] || v.properties?.longitude;
-                const name = v.name || v.properties?.name || `Vessel ${v.mmsi}`;
+                const mmsi = v.mmsi || v.properties?.mmsi || null;
+                const name = v.name || v.properties?.name || (mmsi ? `Vessel ${mmsi}` : 'Unknown');
                 const heading = v.heading || v.properties?.heading || v.cog || 0;
                 const speed = v.speed || v.properties?.sog || 0;
                 const type = v.type || v.properties?.shipType || 'Unknown';
-                const mmsi = v.mmsi || v.properties?.mmsi || 'Unknown';
                 const destination = v.destination || v.properties?.destination || 'Unknown';
-                const flag = v.flag || v.properties?.flag || '';
-                const length = v.length || v.properties?.length || 'N/A';
-                const draft = v.draft || v.properties?.draft || 'N/A';
+                const flag = v.flag || v.properties?.flag || 'Unknown';
+                const length = v.length || v.properties?.length || 'Unknown';
+                const draft = v.draft || v.properties?.draft || 'Unknown';
 
                 if (!lat || !lng) return;
 
@@ -1971,10 +1992,10 @@
                     <div class="vessel-popup">
                         <h3>🚢 ${name}</h3>
                         <span class="vessel-type ${typeClass}">${type}</span>
-                        <div class="detail"><strong>MMSI:</strong> ${mmsi}</div>
-                        <div class="detail"><strong>Flag:</strong> ${flag || 'Unknown'}</div>
+                        <div class="detail"><strong>MMSI:</strong> ${mmsi || 'Unknown'}</div>
+                        <div class="detail"><strong>Flag:</strong> ${flag}</div>
                         <div class="detail"><strong>Speed:</strong> ${formatSpeed(speed)}</div>
-                        <div class="detail"><strong>Heading:</strong> ${heading ? heading.toFixed(0) + '°' : 'N/A'}</div>
+                        <div class="detail"><strong>Heading:</strong> ${heading ? heading.toFixed(0) + '°' : 'Unknown'}</div>
                         <div class="detail"><strong>Destination:</strong> ${destination}</div>
                         <div class="detail"><strong>Length:</strong> ${typeof length === 'number' ? length + ' m' : length}</div>
                         <div class="detail"><strong>Draft:</strong> ${typeof draft === 'number' ? draft.toFixed(1) + ' m' : draft}</div>
