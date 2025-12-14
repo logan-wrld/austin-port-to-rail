@@ -228,6 +228,177 @@ def surge_analysis():
     
     return jsonify(analysis)
 
+@app.route('/api/rail-node-analysis', methods=['POST'])
+def rail_node_analysis():
+    """
+    Analyze rail nodes with inbound freight forecasts using Ollama.
+    Expects JSON with ship_forecast data from the 72-hour forecast.
+    Returns structured node status data.
+    """
+    try:
+        data = request.get_json() or {}
+        ship_forecast = data.get('ship_forecast', {})
+        
+        # Load rail data from CSV files
+        import pandas as pd
+        
+        try:
+            nodes_df = pd.read_csv('data/railroad-nodes.csv')
+            lines_df = pd.read_csv('data/railroad-lines.csv')
+            texas_rail_df = pd.read_csv('data/texas_rail_data.csv', sep='\t', on_bad_lines='skip')
+        except Exception as e:
+            # Fallback if files not found
+            nodes_df = None
+            lines_df = None
+            texas_rail_df = None
+        
+        # Build context from rail data
+        rail_context = ""
+        
+        if nodes_df is not None:
+            # Get Texas nodes summary
+            tx_nodes = nodes_df[nodes_df['STATE'] == 'TX'] if 'STATE' in nodes_df.columns else nodes_df
+            node_count = len(tx_nodes)
+            passenger_stations = len(tx_nodes[tx_nodes['PASSNGRSTN'].notna()]) if 'PASSNGRSTN' in tx_nodes.columns else 0
+            boundary_nodes = len(tx_nodes[tx_nodes['BNDRY'] == 1]) if 'BNDRY' in tx_nodes.columns else 0
+            
+            rail_context += f"""
+Railroad Nodes Summary (Texas):
+- Total nodes: {node_count}
+- Passenger stations: {passenger_stations}
+- Boundary/interchange points: {boundary_nodes}
+
+Sample node data (first 10):
+{tx_nodes.head(10).to_string()}
+"""
+        
+        if lines_df is not None:
+            # Get Texas rail lines summary
+            tx_lines = lines_df[lines_df['STATEAB'] == 'TX'] if 'STATEAB' in lines_df.columns else lines_df
+            total_miles = tx_lines['MILES'].sum() if 'MILES' in tx_lines.columns else 0
+            
+            # Owner breakdown
+            if 'RROWNER1' in tx_lines.columns:
+                owner_counts = tx_lines['RROWNER1'].value_counts().head(10).to_dict()
+            else:
+                owner_counts = {}
+            
+            rail_context += f"""
+Railroad Lines Summary (Texas):
+- Total track miles: {total_miles:.1f}
+- Rail owners: {owner_counts}
+
+Sample line data (first 5):
+{tx_lines.head(5).to_string()}
+"""
+        
+        # Ship forecast context
+        ships_0_24 = ship_forecast.get('0-24h', 0)
+        ships_24_48 = ship_forecast.get('24-48h', 0)
+        ships_48_72 = ship_forecast.get('48-72h', 0)
+        total_ships = ships_0_24 + ships_24_48 + ships_48_72
+        
+        forecast_context = f"""
+Inbound Ship Forecast (72-hour window):
+- 0-24 hours: {ships_0_24} ships
+- 24-48 hours: {ships_24_48} ships  
+- 48-72 hours: {ships_48_72} ships
+- Total inbound: {total_ships} ships
+
+Estimated freight conversion:
+- Average TEU per ship: 2,500
+- Average weight per TEU: 14,000 kg
+- Total expected freight: {total_ships * 2500 * 14000:,.0f} kg over 72 hours
+- Hourly inbound rate: {(total_ships * 2500 * 14000) / 72:,.0f} kg/hour
+"""
+        
+        # Build the analysis prompt
+        analysis_prompt = f"""Analyze the following railroad and freight data. Return ONLY structured JSON data, no prose.
+
+{rail_context}
+
+{forecast_context}
+
+For the top 15 rail nodes in Texas (prioritize nodes near Houston/Galveston):
+1. Estimate inbound load pressure (kg/hour) based on ship forecast
+2. Compare against inferred rail capacity from line density and node connectivity
+3. Classify node status as: NORMAL, ELEVATED, STRESSED, or CRITICAL
+
+Return JSON in this exact format:
+{{
+  "analysis_timestamp": "ISO timestamp",
+  "total_inbound_freight_kg_per_hour": number,
+  "nodes": [
+    {{
+      "node_id": "string",
+      "location": "city/area name",
+      "estimated_load_kg_per_hour": number,
+      "capacity_utilization_pct": number,
+      "status": "NORMAL|ELEVATED|STRESSED|CRITICAL",
+      "connected_lines": number,
+      "primary_railroad": "string"
+    }}
+  ],
+  "summary": {{
+    "critical_nodes": number,
+    "stressed_nodes": number,
+    "recommended_actions": ["string"]
+  }}
+}}"""
+
+        # Call Ollama
+        ollama_payload = {
+            "model": OLLAMA_MODEL,
+            "prompt": analysis_prompt,
+            "stream": False,
+            "format": "json",
+            "options": {
+                "temperature": 0.3,
+                "num_predict": 2000
+            }
+        }
+        
+        response = requests.post(
+            f"{OLLAMA_URL}/api/generate",
+            json=ollama_payload,
+            timeout=120
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            llm_response = result.get("response", "{}")
+            
+            # Try to parse as JSON
+            try:
+                analysis_data = json.loads(llm_response)
+            except json.JSONDecodeError:
+                # If not valid JSON, return raw response
+                analysis_data = {"raw_response": llm_response, "parse_error": True}
+            
+            return jsonify({
+                "success": True,
+                "analysis": analysis_data,
+                "model": OLLAMA_MODEL,
+                "ship_forecast_input": ship_forecast
+            })
+        else:
+            return jsonify({
+                "error": f"Ollama error: {response.status_code}",
+                "details": response.text
+            }), 500
+            
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            "error": "Cannot connect to Ollama",
+            "hint": "Run 'ollama serve' to start the server"
+        }), 503
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
 if __name__ == '__main__':
     print(f"Starting API server...")
     print(f"Ollama URL: {OLLAMA_URL}")
@@ -238,5 +409,6 @@ if __name__ == '__main__':
     print(f"  GET  /api/forecast - 24-hour forecast")
     print(f"  GET  /api/surge-analysis - Detailed surge analysis")
     print(f"  POST /api/chat - Chat with AI (send JSON: {{\"message\": \"your question\"}})")
+    print(f"  POST /api/rail-node-analysis - Analyze rail nodes with ship forecast")
     
     app.run(host='0.0.0.0', port=5000, debug=True)

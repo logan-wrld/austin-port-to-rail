@@ -267,6 +267,61 @@
             margin: 3px 0;
         }
 
+        /* Rail Node Analysis Styles */
+        .rail-analysis-btn {
+            margin-top: 8px;
+            padding: 6px 12px;
+            background: #805ad5;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            width: 100%;
+        }
+        .rail-analysis-btn:hover { background: #6b46c1; }
+        .rail-analysis-btn:disabled { background: #a0aec0; cursor: wait; }
+        
+        .rail-analysis-results {
+            margin-top: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 10px;
+        }
+        .rail-node-item {
+            padding: 6px 8px;
+            margin: 4px 0;
+            background: #f7fafc;
+            border-radius: 4px;
+            border-left: 3px solid #cbd5e0;
+        }
+        .rail-node-item.critical { border-left-color: #e53e3e; background: #fff5f5; }
+        .rail-node-item.stressed { border-left-color: #dd6b20; background: #fffaf0; }
+        .rail-node-item.elevated { border-left-color: #d69e2e; background: #fffff0; }
+        .rail-node-item.normal { border-left-color: #38a169; }
+        
+        .rail-node-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .rail-node-status {
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: bold;
+        }
+        .status-critical { background: #fed7d7; color: #c53030; }
+        .status-stressed { background: #feebc8; color: #c05621; }
+        .status-elevated { background: #fefcbf; color: #975a16; }
+        .status-normal { background: #c6f6d5; color: #276749; }
+        
+        .rail-node-details {
+            color: #718096;
+            font-size: 9px;
+        }
+
         /* Rail styles */
         .legend-line {
             width: 20px;
@@ -1088,7 +1143,7 @@
     <!-- Ship Arrival Forecast Panel -->
     <div class="forecast-panel panel" id="forecastPanel">
         <div class="panel-header">
-            <h3 style="margin:0;">📅 72-Hour Ship Forecast</h3>
+            <h3 style="margin:0;">72-Hour Ship Forecast</h3>
             <button class="collapse-btn" onclick="togglePanel('forecastPanel')" title="Toggle panel">−</button>
         </div>
         <div class="panel-content" id="forecastPanelContent">
@@ -1096,6 +1151,12 @@
                 <div style="color:#718096; font-style:italic;">Loading forecast...</div>
             </div>
             <div class="forecast-stats" id="forecastStats"></div>
+            
+            <!-- Rail Node Analysis Section -->
+            <button class="rail-analysis-btn" id="railAnalysisBtn" onclick="analyzeRailNodes()">
+                Analyze Rail Node Capacity
+            </button>
+            <div class="rail-analysis-results" id="railAnalysisResults" style="display:none;"></div>
         </div>
     </div>
 
@@ -2466,6 +2527,93 @@
         function askAI(question) {
             document.getElementById('aiInput').value = question;
             sendAIMessage();
+        }
+
+        // Analyze Rail Node Capacity with Ollama
+        async function analyzeRailNodes() {
+            const btn = document.getElementById('railAnalysisBtn');
+            const resultsDiv = document.getElementById('railAnalysisResults');
+            
+            // Get current ship count from forecast
+            let shipCount = 0;
+            if (typeof shipForecaster !== 'undefined') {
+                const summary = shipForecaster.getSummary();
+                shipCount = summary.total72Hours || 15;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Analyzing...';
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = '<div style="color:#718096;font-style:italic;text-align:center;padding:10px;">Querying AI for rail node analysis...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/rail-analysis?ship_count=${shipCount}&forecast_window=72`, {
+                    method: 'GET',
+                    signal: AbortSignal.timeout(120000) // 2 min timeout for LLM
+                });
+
+                if (!response.ok) throw new Error('API error');
+
+                const data = await response.json();
+                
+                // Try to parse the LLM response as JSON
+                let analysis = null;
+                try {
+                    // Clean up the response - remove markdown code blocks if present
+                    let cleanResponse = data.llm_response || '';
+                    cleanResponse = cleanResponse.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                    analysis = JSON.parse(cleanResponse);
+                } catch (parseErr) {
+                    console.log('Could not parse as JSON, displaying raw response');
+                }
+
+                if (analysis && analysis.nodes) {
+                    // Render structured results
+                    let html = '<div class="rail-analysis-section">';
+                    html += `<div style="font-size:10px;color:#718096;margin-bottom:8px;">Analysis for ${shipCount} ships over 72 hours</div>`;
+                    
+                    analysis.nodes.forEach(node => {
+                        const statusClass = (node.status || 'unknown').toLowerCase();
+                        html += `
+                            <div class="rail-node-card">
+                                <div class="node-header">
+                                    <span class="node-name">${node.node_name || node.name || 'Unknown'}</span>
+                                    <span class="node-status ${statusClass}">${node.status || 'N/A'}</span>
+                                </div>
+                                <div class="node-details">
+                                    <span>Load: ${node.load_pressure_kg_hr || node.load || 'N/A'}</span>
+                                    <span>Capacity: ${(node.capacity_factor * 100 || node.capacity || 'N/A')}%</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    if (analysis.summary) {
+                        html += `<div style="margin-top:8px;padding:6px;background:#1a1a2e;border-radius:4px;font-size:10px;color:#a0aec0;">${analysis.summary}</div>`;
+                    }
+                    
+                    html += '</div>';
+                    resultsDiv.innerHTML = html;
+                } else {
+                    // Show raw LLM response
+                    resultsDiv.innerHTML = `
+                        <div class="rail-analysis-section">
+                            <div style="font-size:10px;color:#718096;margin-bottom:8px;">Raw Analysis Result:</div>
+                            <div style="font-size:11px;white-space:pre-wrap;max-height:200px;overflow-y:auto;">${data.llm_response || 'No response'}</div>
+                        </div>
+                    `;
+                }
+            } catch (e) {
+                console.error('Rail analysis error:', e);
+                resultsDiv.innerHTML = `
+                    <div style="color:#fc8181;font-size:11px;padding:8px;">
+                        Could not complete rail analysis. Ensure API server is running.
+                    </div>
+                `;
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Analyze Rail Node Capacity';
         }
 
         // Initialize AI panel
