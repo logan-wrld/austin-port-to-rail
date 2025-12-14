@@ -1368,8 +1368,28 @@
         </div>
     </div>
 
+    <!-- Ship Tracking Panel -->
+    <div class="forecast-panel panel" id="trackerPanel" style="top: 380px;">
+        <div class="panel-header">
+            <h3 style="margin:0;">📍 Ship Tracker</h3>
+            <button class="collapse-btn" onclick="togglePanel('trackerPanel')" title="Toggle panel">−</button>
+        </div>
+        <div class="panel-content" id="trackerPanelContent">
+            <div id="trackerContent">
+                <div style="color:#a0aec0; font-style:italic;">Initializing tracker...</div>
+            </div>
+            <div class="tracker-stats" id="trackerStats"></div>
+            <div class="tracker-actions" style="margin-top:8px; display:flex; gap:4px; flex-wrap:wrap;">
+                <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="showDockedVessels()">Docked</button>
+                <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="showVesselHistory()">History</button>
+                <button class="btn" style="padding:4px 8px; font-size:10px;" onclick="exportTrackerData()">Export</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="js/ship-forecasting.js"></script>
+    <script src="js/ship-tracker.js"></script>
     <script>
         // Initialize map centered on Port of Houston / Galveston Bay area
         const map = L.map('map', {
@@ -2012,6 +2032,12 @@
             document.getElementById('shipCount').textContent = count;
             setStatus(`Updated: ${new Date().toLocaleTimeString()}`, 'success');
 
+            // Update ship tracker with AIS data
+            if (typeof ShipTracker !== 'undefined') {
+                ShipTracker.updateFromAIS(vessels);
+                updateTrackerPanel();
+            }
+
             // Update forecast panel with ship data
             updateForecastPanel(vessels);
         }
@@ -2040,6 +2066,148 @@
             });
             
             document.getElementById('shipCount').textContent = count;
+        }
+
+        // ========== SHIP TRACKER PANEL FUNCTIONS ==========
+        
+        // Update the tracker panel with current stats
+        function updateTrackerPanel() {
+            if (typeof ShipTracker === 'undefined') return;
+            
+            const stats = ShipTracker.getStats();
+            const docked = ShipTracker.getDockedVessels();
+            
+            let html = `
+                <div class="forecast-row">
+                    <span class="forecast-label">Tracked:</span> <strong>${stats.totalTracked}</strong>
+                    <span class="forecast-sep">|</span>
+                    <span class="forecast-label">Docked:</span> <strong>${stats.currentlyDocked}</strong>
+                    <span class="forecast-sep">|</span>
+                    <span class="forecast-label">Unloading:</span> <strong>${stats.unloadingNow}</strong>
+                </div>
+            `;
+            
+            if (docked.length > 0) {
+                html += `<div style="margin-top:6px; font-size:10px; color:#a0aec0;">Recent docked:</div>`;
+                html += `<div style="max-height:80px; overflow-y:auto; font-size:10px;">`;
+                docked.slice(0, 5).forEach(v => {
+                    const statusIcon = v.status === 'unloading' ? '⏳' : '⚓';
+                    html += `<div style="padding:2px 0; border-bottom:1px solid #333;">
+                        ${statusIcon} <strong>${v.name}</strong> @ ${v.terminal || 'Unknown'}
+                    </div>`;
+                });
+                html += `</div>`;
+            }
+            
+            document.getElementById('trackerContent').innerHTML = html;
+            
+            // Update stats
+            let statsHtml = `
+                <div><strong>Inbound:</strong> ${stats.inbound || 0} | <strong>Departing:</strong> ${stats.departing || 0}</div>
+                <div><strong>Departed today:</strong> ${stats.departedToday || 0}</div>
+            `;
+            if (stats.lastUpdated) {
+                const updated = new Date(stats.lastUpdated);
+                statsHtml += `<div style="margin-top:4px; font-size:10px; color:#a0aec0;">Updated: ${updated.toLocaleTimeString()}</div>`;
+            }
+            
+            document.getElementById('trackerStats').innerHTML = statsHtml;
+        }
+        
+        // Show modal with docked vessels details
+        function showDockedVessels() {
+            if (typeof ShipTracker === 'undefined') return;
+            
+            const docked = ShipTracker.getDockedVessels();
+            let content = '<h3>Docked & Unloading Vessels</h3>';
+            
+            if (docked.length === 0) {
+                content += '<p style="color:#a0aec0;">No vessels currently docked.</p>';
+            } else {
+                content += '<div style="max-height:400px; overflow-y:auto;">';
+                docked.forEach(v => {
+                    const statusIcon = v.status === 'unloading' ? '⏳ Unloading' : '⚓ Docked';
+                    const dockedTime = v.dockedAt ? new Date(v.dockedAt).toLocaleString() : 'Unknown';
+                    content += `
+                        <div style="padding:8px; margin:4px 0; background:#1a1a2e; border-radius:4px;">
+                            <div><strong>🚢 ${v.name}</strong></div>
+                            <div style="font-size:11px; color:#a0aec0;">
+                                ${statusIcon} @ ${v.terminal || 'Unknown Terminal'}<br>
+                                Type: ${v.type} | Flag: ${v.flag}<br>
+                                Docked: ${dockedTime}<br>
+                                MMSI: ${v.mmsi}
+                            </div>
+                        </div>
+                    `;
+                });
+                content += '</div>';
+            }
+            
+            showModal(content);
+        }
+        
+        // Show vessel history
+        function showVesselHistory() {
+            if (typeof ShipTracker === 'undefined') return;
+            
+            const history = ShipTracker.getRecentHistory(30);
+            let content = '<h3>Recent Vessel Activity</h3>';
+            
+            if (history.length === 0) {
+                content += '<p style="color:#a0aec0;">No activity recorded yet.</p>';
+            } else {
+                content += '<div style="max-height:400px; overflow-y:auto;">';
+                history.forEach(h => {
+                    const time = new Date(h.timestamp).toLocaleString();
+                    const statusEmoji = {
+                        'docked': '⚓',
+                        'unloading': '⏳',
+                        'departing': '🚀',
+                        'approaching': '➡️',
+                        'inbound': '📍'
+                    };
+                    content += `
+                        <div style="padding:6px; margin:2px 0; background:#1a1a2e; border-radius:4px; font-size:11px;">
+                            <strong>${h.name}</strong>: ${h.fromStatus} → ${statusEmoji[h.toStatus] || ''} ${h.toStatus}
+                            ${h.terminal ? `@ ${h.terminal}` : ''}
+                            <div style="color:#718096; font-size:10px;">${time}</div>
+                        </div>
+                    `;
+                });
+                content += '</div>';
+            }
+            
+            showModal(content);
+        }
+        
+        // Export tracker data
+        function exportTrackerData() {
+            if (typeof ShipTracker === 'undefined') return;
+            ShipTracker.exportData();
+            setStatus('Ship tracking data exported', 'success');
+        }
+        
+        // Simple modal function
+        function showModal(content) {
+            // Remove existing modal if any
+            const existing = document.getElementById('trackerModal');
+            if (existing) existing.remove();
+            
+            const modal = document.createElement('div');
+            modal.id = 'trackerModal';
+            modal.style.cssText = `
+                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: #16213e; border: 1px solid #4a5568; border-radius: 8px;
+                padding: 20px; max-width: 500px; max-height: 80vh; overflow-y: auto;
+                z-index: 10000; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            `;
+            modal.innerHTML = content + `
+                <button onclick="document.getElementById('trackerModal').remove()" 
+                    style="margin-top:12px; padding:8px 16px; background:#4a5568; color:white; border:none; border-radius:4px; cursor:pointer;">
+                    Close
+                </button>
+            `;
+            document.body.appendChild(modal);
         }
 
         // Update the 72-hour forecast panel

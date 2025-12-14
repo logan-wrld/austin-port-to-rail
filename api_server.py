@@ -402,6 +402,138 @@ Return JSON in this exact format:
             "traceback": traceback.format_exc()
         }), 500
 
+# ========== SHIP TRACKING ENDPOINTS ==========
+
+SHIP_TRACKER_FILE = 'data/ship_tracker.json'
+
+def load_ship_tracker():
+    """Load ship tracker data from file"""
+    try:
+        if os.path.exists(SHIP_TRACKER_FILE):
+            with open(SHIP_TRACKER_FILE, 'r') as f:
+                return json.load(f)
+    except Exception as e:
+        print(f"Error loading ship tracker: {e}")
+    return {"vessels": {}, "history": [], "stats": {}}
+
+def save_ship_tracker(data):
+    """Save ship tracker data to file"""
+    try:
+        os.makedirs(os.path.dirname(SHIP_TRACKER_FILE), exist_ok=True)
+        with open(SHIP_TRACKER_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving ship tracker: {e}")
+        return False
+
+@app.route('/api/ship-tracker', methods=['GET'])
+def get_ship_tracker():
+    """Get current ship tracking data"""
+    data = load_ship_tracker()
+    return jsonify(data)
+
+@app.route('/api/ship-tracker', methods=['POST'])
+def update_ship_tracker():
+    """Update ship tracking data"""
+    try:
+        new_data = request.get_json()
+        if not new_data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        # Merge with existing data or replace
+        if new_data.get('merge'):
+            existing = load_ship_tracker()
+            # Merge vessels
+            for mmsi, vessel in new_data.get('vessels', {}).items():
+                existing['vessels'][mmsi] = vessel
+            # Append history
+            existing['history'].extend(new_data.get('history', []))
+            # Keep last 1000 history entries
+            existing['history'] = existing['history'][-1000:]
+            # Update stats
+            existing['stats'] = new_data.get('stats', existing.get('stats', {}))
+            new_data = existing
+        
+        if save_ship_tracker(new_data):
+            return jsonify({"success": True, "vessels_count": len(new_data.get('vessels', {}))})
+        else:
+            return jsonify({"error": "Failed to save data"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ship-tracker/vessels', methods=['GET'])
+def get_tracked_vessels():
+    """Get all tracked vessels with optional status filter"""
+    data = load_ship_tracker()
+    status_filter = request.args.get('status')
+    
+    vessels = list(data.get('vessels', {}).values())
+    
+    if status_filter:
+        vessels = [v for v in vessels if v.get('status') == status_filter]
+    
+    return jsonify({"vessels": vessels, "count": len(vessels)})
+
+@app.route('/api/ship-tracker/docked', methods=['GET'])
+def get_docked_vessels():
+    """Get vessels that are currently docked or unloading"""
+    data = load_ship_tracker()
+    vessels = list(data.get('vessels', {}).values())
+    
+    docked = [v for v in vessels if v.get('status') in ['docked', 'unloading']]
+    
+    return jsonify({
+        "docked": docked,
+        "count": len(docked),
+        "by_terminal": _group_by_terminal(docked)
+    })
+
+def _group_by_terminal(vessels):
+    """Group vessels by terminal"""
+    terminals = {}
+    for v in vessels:
+        terminal = v.get('terminal', 'Unknown')
+        if terminal not in terminals:
+            terminals[terminal] = []
+        terminals[terminal].append(v)
+    return terminals
+
+@app.route('/api/ship-tracker/history', methods=['GET'])
+def get_tracker_history():
+    """Get vessel status change history"""
+    data = load_ship_tracker()
+    limit = request.args.get('limit', 50, type=int)
+    
+    history = data.get('history', [])[-limit:]
+    history.reverse()  # Most recent first
+    
+    return jsonify({"history": history, "count": len(history)})
+
+@app.route('/api/ship-tracker/stats', methods=['GET'])
+def get_tracker_stats():
+    """Get tracking statistics"""
+    data = load_ship_tracker()
+    vessels = list(data.get('vessels', {}).values())
+    
+    stats = {
+        "total_tracked": len(vessels),
+        "by_status": {},
+        "by_terminal": {},
+        "last_updated": data.get('stats', {}).get('lastUpdated')
+    }
+    
+    for v in vessels:
+        status = v.get('status', 'unknown')
+        stats['by_status'][status] = stats['by_status'].get(status, 0) + 1
+        
+        terminal = v.get('terminal')
+        if terminal:
+            stats['by_terminal'][terminal] = stats['by_terminal'].get(terminal, 0) + 1
+    
+    return jsonify(stats)
+
 if __name__ == '__main__':
     print(f"Starting API server...")
     print(f"Ollama URL: {OLLAMA_URL}")
@@ -413,5 +545,9 @@ if __name__ == '__main__':
     print(f"  GET  /api/surge-analysis - Detailed surge analysis")
     print(f"  POST /api/chat - Chat with AI (send JSON: {{\"message\": \"your question\"}})")
     print(f"  GET  /api/rail-analysis - Analyze rail nodes (?ship_count=N&forecast_window=H)")
+    print(f"  GET  /api/ship-tracker - Get ship tracking data")
+    print(f"  POST /api/ship-tracker - Update ship tracking data")
+    print(f"  GET  /api/ship-tracker/docked - Get docked vessels")
+    print(f"  GET  /api/ship-tracker/history - Get status change history")
     
     app.run(host='0.0.0.0', port=5000, debug=True)
