@@ -1212,7 +1212,7 @@
     <div class="ai-panel panel" id="aiPanel">
         <div class="panel-header">
             <h3>
-                <span><span class="status-dot" id="aiStatusDot"></span>AI Analytics</span>
+                <span><span class="status-dot" id="aiStatusDot"></span>AI Powered Prediction</span>
             </h3>
             <button class="collapse-btn" onclick="togglePanel('aiPanel')" title="Toggle panel">−</button>
         </div>
@@ -1822,59 +1822,53 @@
             const vessels = [];
             const numVessels = 28 + Math.floor(Math.random() * 12); // More vessels for extended range
 
-            // Define realistic ship positions along the Houston Ship Channel and Galveston Bay
+            // Define realistic ship positions distributed across 72-hour arrival windows
+            // Based on actual distance-to-port calculations at typical speeds
             const shipPositions = [
-                // Deep Gulf of Mexico - ships 80-120nm out (48-72 hour ETA)
-                { lat: 27.8, lng: -93.5, heading: 315, zone: 'deep-gulf' },
-                { lat: 27.9, lng: -93.8, heading: 320, zone: 'deep-gulf' },
-                { lat: 28.0, lng: -94.0, heading: 325, zone: 'deep-gulf' },
-                { lat: 28.1, lng: -93.6, heading: 318, zone: 'deep-gulf' },
-                // Mid Gulf - ships 50-80nm out (24-48 hour ETA)
-                { lat: 28.3, lng: -94.0, heading: 330, zone: 'mid-gulf' },
-                { lat: 28.4, lng: -94.2, heading: 328, zone: 'mid-gulf' },
-                { lat: 28.5, lng: -93.9, heading: 332, zone: 'mid-gulf' },
-                { lat: 28.55, lng: -94.1, heading: 335, zone: 'mid-gulf' },
-                // Near Gulf - ships 20-50nm out (12-24 hour ETA)
-                { lat: 28.7, lng: -94.2, heading: 338, zone: 'near-gulf' },
-                { lat: 28.8, lng: -94.3, heading: 340, zone: 'near-gulf' },
-                { lat: 28.95, lng: -94.35, heading: 340, zone: 'gulf' },
-                { lat: 29.02, lng: -94.42, heading: 335, zone: 'gulf' },
-                { lat: 29.08, lng: -94.48, heading: 332, zone: 'gulf' },
-                { lat: 29.15, lng: -94.55, heading: 330, zone: 'gulf' },
-                { lat: 29.22, lng: -94.62, heading: 328, zone: 'gulf' },
-                // Galveston Bay approach - ships entering
-                { lat: 29.28, lng: -94.68, heading: 330, zone: 'approach' },
-                { lat: 29.32, lng: -94.72, heading: 330, zone: 'approach' },
-                { lat: 29.36, lng: -94.76, heading: 325, zone: 'approach' },
-                { lat: 29.40, lng: -94.78, heading: 320, zone: 'bay' },
-                // Galveston Bay - ships transiting
-                { lat: 29.40, lng: -94.78, heading: 320, zone: 'bay' },
-                { lat: 29.45, lng: -94.82, heading: 315, zone: 'bay' },
-                { lat: 29.50, lng: -94.86, heading: 310, zone: 'bay' },
-                { lat: 29.53, lng: -94.88, heading: 305, zone: 'bay' },
-                // Entering Houston Ship Channel from Morgan's Point
-                { lat: 29.58, lng: -94.91, heading: 300, zone: 'channel' },
-                { lat: 29.62, lng: -94.94, heading: 295, zone: 'channel' },
-                { lat: 29.66, lng: -94.97, heading: 290, zone: 'channel' },
-                { lat: 29.68, lng: -94.98, heading: 290, zone: 'channel' },
-                { lat: 29.69, lng: -95.00, heading: 285, zone: 'channel' },
-                // Mid channel near Bayport
-                { lat: 29.71, lng: -95.02, heading: 280, zone: 'channel' },
-                { lat: 29.72, lng: -95.05, heading: 275, zone: 'channel' },
-                { lat: 29.72, lng: -95.08, heading: 270, zone: 'channel' },
-                // Near Jacintoport
-                { lat: 29.73, lng: -95.10, heading: 270, zone: 'channel' },
-                { lat: 29.73, lng: -95.12, heading: 268, zone: 'channel' },
-                { lat: 29.73, lng: -95.15, heading: 265, zone: 'channel' },
-                // Approaching Turning Basin
-                { lat: 29.74, lng: -95.18, heading: 265, zone: 'upper' },
-                { lat: 29.74, lng: -95.22, heading: 260, zone: 'upper' },
-                { lat: 29.74, lng: -95.26, heading: 255, zone: 'upper' },
-                // At terminals (stationary/slow)
-                { lat: 29.72, lng: -95.00, heading: 45, zone: 'terminal', speed: 0 },
-                { lat: 29.62, lng: -94.99, heading: 90, zone: 'terminal', speed: 0 },
-                { lat: 29.74, lng: -95.27, heading: 180, zone: 'terminal', speed: 0.5 },
-                { lat: 29.31, lng: -94.79, heading: 90, zone: 'terminal', speed: 0 }, // Galveston
+                // === 48-72 HOUR ARRIVALS (Deep Gulf - 100-150nm out) ===
+                { lat: 27.5, lng: -93.2, heading: 320, zone: 'deep-gulf', speed: 12 },
+                { lat: 27.6, lng: -93.5, heading: 315, zone: 'deep-gulf', speed: 11 },
+                { lat: 27.7, lng: -93.0, heading: 325, zone: 'deep-gulf', speed: 13 },
+                { lat: 27.8, lng: -93.8, heading: 318, zone: 'deep-gulf', speed: 10 },
+                { lat: 27.9, lng: -93.3, heading: 322, zone: 'deep-gulf', speed: 12 },
+                { lat: 27.65, lng: -93.6, heading: 317, zone: 'deep-gulf', speed: 11 },
+                { lat: 27.85, lng: -93.1, heading: 320, zone: 'deep-gulf', speed: 14 },
+                { lat: 28.0, lng: -93.4, heading: 325, zone: 'deep-gulf', speed: 10 },
+                
+                // === 24-48 HOUR ARRIVALS (Mid Gulf - 50-100nm out) ===
+                { lat: 28.2, lng: -93.8, heading: 330, zone: 'mid-gulf', speed: 12 },
+                { lat: 28.3, lng: -94.0, heading: 328, zone: 'mid-gulf', speed: 11 },
+                { lat: 28.4, lng: -93.7, heading: 332, zone: 'mid-gulf', speed: 13 },
+                { lat: 28.5, lng: -94.1, heading: 325, zone: 'mid-gulf', speed: 10 },
+                { lat: 28.35, lng: -93.9, heading: 330, zone: 'mid-gulf', speed: 12 },
+                { lat: 28.55, lng: -93.8, heading: 328, zone: 'mid-gulf', speed: 11 },
+                { lat: 28.45, lng: -94.2, heading: 326, zone: 'mid-gulf', speed: 10 },
+                
+                // === 12-24 HOUR ARRIVALS (Near Gulf - 20-50nm out) ===
+                { lat: 28.7, lng: -94.2, heading: 338, zone: 'near-gulf', speed: 10 },
+                { lat: 28.8, lng: -94.3, heading: 340, zone: 'near-gulf', speed: 9 },
+                { lat: 28.9, lng: -94.4, heading: 335, zone: 'near-gulf', speed: 11 },
+                { lat: 29.0, lng: -94.45, heading: 332, zone: 'near-gulf', speed: 10 },
+                { lat: 29.1, lng: -94.5, heading: 330, zone: 'near-gulf', speed: 9 },
+                
+                // === 0-12 HOUR ARRIVALS (Approach & Bay - 5-20nm out) ===
+                { lat: 29.2, lng: -94.6, heading: 328, zone: 'approach', speed: 8 },
+                { lat: 29.28, lng: -94.68, heading: 325, zone: 'approach', speed: 7 },
+                { lat: 29.35, lng: -94.75, heading: 320, zone: 'bay', speed: 8 },
+                { lat: 29.45, lng: -94.82, heading: 315, zone: 'bay', speed: 7 },
+                
+                // === IN CHANNEL (arriving within hours) ===
+                { lat: 29.55, lng: -94.88, heading: 305, zone: 'channel', speed: 6 },
+                { lat: 29.62, lng: -94.94, heading: 295, zone: 'channel', speed: 5 },
+                { lat: 29.68, lng: -95.00, heading: 285, zone: 'channel', speed: 5 },
+                
+                // === AT TERMINALS (docked - excluded from forecast) ===
+                { lat: 29.72, lng: -95.02, heading: 45, zone: 'terminal', speed: 0, docked: true },
+                { lat: 29.62, lng: -94.99, heading: 90, zone: 'terminal', speed: 0, docked: true },
+                { lat: 29.74, lng: -95.27, heading: 180, zone: 'terminal', speed: 0, docked: true },
+                { lat: 29.31, lng: -94.79, heading: 90, zone: 'terminal', speed: 0, docked: true },
+                { lat: 29.72, lng: -95.10, heading: 270, zone: 'terminal', speed: 0, docked: true },
+                { lat: 29.73, lng: -95.18, heading: 265, zone: 'terminal', speed: 0, docked: true },
             ];
 
             for (let i = 0; i < Math.min(numVessels, shipPositions.length + 5); i++) {
@@ -1931,6 +1925,8 @@
                     lng: pos.lng,
                     heading: pos.heading,
                     speed: speed,
+                    zone: pos.zone,
+                    docked: pos.docked || false,
                     type: vesselType,
                     destination: destinations[Math.floor(Math.random() * destinations.length)],
                     flag: flags[Math.floor(Math.random() * flags.length)],
@@ -2123,12 +2119,14 @@
             }
 
             // Normalize vessel data for forecasting
+            // Exclude docked ships (speed = 0 or marked as docked) from arrival forecast
             const normalizedVessels = vessels.map(v => ({
                 name: v.name || v.properties?.name || `Vessel ${v.mmsi}`,
                 lat: v.lat || v.geometry?.coordinates?.[1] || v.properties?.latitude,
                 lon: v.lng || v.geometry?.coordinates?.[0] || v.properties?.longitude,
-                speed: v.speed || v.properties?.sog || 10
-            })).filter(v => v.lat && v.lon);
+                speed: v.speed || v.properties?.sog || 10,
+                docked: v.docked || v.zone === 'terminal' || false
+            })).filter(v => v.lat && v.lon && !v.docked && v.speed > 0.5);
 
             // Get forecast from ShipForecasting module
             const summary = ShipForecasting.getSummary(normalizedVessels);
@@ -2138,6 +2136,11 @@
             const w24 = forecast.windows["0-24h"];
             const w48 = forecast.windows["24-48h"];
             const w72 = forecast.windows["48-72h"];
+            
+            // Count docked vessels (excluded from forecast)
+            const dockedCount = vessels.filter(v => 
+                v.docked || v.zone === 'terminal' || (v.speed !== undefined && v.speed <= 0.5)
+            ).length;
 
             let html = `
                 <div class="forecast-row">
@@ -2148,7 +2151,7 @@
                     <span class="forecast-label">48-72h:</span> <strong>${w72.count}</strong> ships
                 </div>
                 <div class="forecast-summary">
-                    Total: <strong>${w24.count + w48.count + w72.count}</strong> ships in 72h window
+                    Inbound: <strong>${w24.count + w48.count + w72.count}</strong> | Docked: <strong>${dockedCount}</strong>
                 </div>
             `;
 
