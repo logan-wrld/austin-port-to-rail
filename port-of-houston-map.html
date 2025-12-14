@@ -1712,11 +1712,26 @@
                     
                     const vessels = data.features.map(f => {
                         const attrs = f.attributes || {};
+                        const lat = f.geometry?.y || f.geometry?.points?.[0]?.[1] || f.geometry?.coordinates?.[1];
+                        const lng = f.geometry?.x || f.geometry?.points?.[0]?.[0] || f.geometry?.coordinates?.[0];
+                        const mmsi = attrs.MMSI || attrs.mmsi || attrs.MMSI_NUMBER || null;
+                        
+                        // Log first vessel to verify data extraction
+                        if (data.features.indexOf(f) === 0) {
+                            console.log('ArcGIS API - First vessel extracted:', {
+                                geometry: f.geometry,
+                                lat: lat,
+                                lng: lng,
+                                mmsi: mmsi,
+                                name: attrs.VesselName || attrs.VESSEL_NAME || attrs.SHIPNAME || attrs.name
+                            });
+                        }
+                        
                         return {
-                            lat: f.geometry.y || f.geometry.points?.[0]?.[1],
-                            lng: f.geometry.x || f.geometry.points?.[0]?.[0],
+                            lat: lat,
+                            lng: lng,
                             name: attrs.VesselName || attrs.VESSEL_NAME || attrs.SHIPNAME || attrs.name || 'Unknown',
-                            mmsi: attrs.MMSI || attrs.mmsi || attrs.MMSI_NUMBER || 'Unknown',
+                            mmsi: mmsi,
                             heading: attrs.Heading || attrs.COG || attrs.HEADING || attrs.heading || 0,
                             speed: attrs.SOG || attrs.Speed || attrs.SPEED || attrs.speed || 0,
                             type: attrs.VesselType || attrs.VESSEL_TYPE || attrs.SHIPTYPE || attrs.type || 'Unknown',
@@ -1725,7 +1740,7 @@
                             length: attrs.Length || attrs.LENGTH || attrs.length || 'Unknown',
                             draft: attrs.Draft || attrs.DRAFT || attrs.draft || 'Unknown'
                         };
-                    }).filter(v => v.lat && v.lng);
+                    }).filter(v => v.lat && v.lng && !isNaN(v.lat) && !isNaN(v.lng));
 
                     if (vessels.length > 0) {
                         document.getElementById('dataMode').textContent = 'Live (ArcGIS)';
@@ -1744,53 +1759,15 @@
                 throw new Error('No vessels in response');
 
             } catch (error) {
-                console.log('ArcGIS API unavailable, trying backend API:', error.message);
-                
-                // Try backend API as fallback
-                try {
-                    const backendResponse = await fetch(`${API_BASE_URL}/api/ship-tracker/vessels`, {
-                        signal: AbortSignal.timeout(5000),
-                        cache: 'no-store'
-                    });
-                    
-                    if (backendResponse.ok) {
-                        const backendData = await backendResponse.json();
-                        if (backendData.vessels && backendData.vessels.length > 0) {
-                            // Convert backend vessel format to display format
-                            const vessels = backendData.vessels.map(v => ({
-                                mmsi: v.mmsi,
-                                name: v.name,
-                                lat: v.lat,
-                                lng: v.lng,
-                                heading: v.heading || 0,
-                                speed: v.speed || 0,
-                                type: v.type || 'Unknown',
-                                destination: v.destination || 'Unknown',
-                                flag: v.flag || 'Unknown',
-                                length: v.length || 'Unknown',
-                                draft: v.draft || 'Unknown'
-                            })).filter(v => v.lat && v.lng);
-                            
-                            if (vessels.length > 0) {
-                                document.getElementById('dataMode').textContent = 'Live (Backend API)';
-                                if (isDarkTheme) {
-                                    document.getElementById('dataMode').parentElement.style.background = '#1a2a1a';
-                                    document.getElementById('dataMode').parentElement.style.borderColor = '#2a4a2a';
-                                } else {
-                                    document.getElementById('dataMode').parentElement.style.background = '#d1fae5';
-                                    document.getElementById('dataMode').parentElement.style.borderColor = '#86efac';
-                                }
-                                displayVessels(vessels);
-                                refreshBtn.disabled = false;
-                                return;
-                            }
-                        }
-                    }
-                } catch (backendError) {
-                    console.log('Backend API also unavailable:', backendError.message);
-                }
+                console.log('ArcGIS API unavailable, using simulation:', error.message);
+                console.log('Note: Backend API (JSON file) contains stale position data and is not used for ship positions.');
+                console.log('Ship positions are always fetched fresh from external APIs or simulation.');
                 
                 // Fall back to simulation
+                // NOTE: We do NOT use the backend API (JSON file) for ship positions because:
+                // 1. The JSON file contains stale/cached position data
+                // 2. Ship positions should always be fresh from external APIs
+                // 3. The backend API is only used for tracking/status information, not positions
                 console.log('Using simulation mode');
                 document.getElementById('dataMode').textContent = 'Simulated Demo';
                 if (isDarkTheme) {
@@ -2111,17 +2088,30 @@
 
                 if (!lat || !lng) return;
                 
-                // Use MMSI as key, or generate one if missing
-                const key = mmsi || `vessel_${lat}_${lng}`;
+                // Use MMSI as key - this ensures we update the same vessel even if position changes
+                // If MMSI is missing, use name as fallback, then position as last resort
+                const key = mmsi || (name !== 'Unknown' ? `name_${name}` : `vessel_${lat.toFixed(2)}_${lng.toFixed(2)}`);
                 seenMMSIs.add(key);
 
                 // Check if marker already exists
                 let marker = vesselMarkers.get(key);
                 
                 if (marker) {
+                    // Get current marker position to check if it changed
+                    const currentPos = marker.getLatLng();
+                    const positionChanged = Math.abs(currentPos.lat - lat) > 0.0001 || Math.abs(currentPos.lng - lng) > 0.0001;
+                    
                     // Update existing marker position and icon
                     const newLatLng = [lat, lng];
                     marker.setLatLng(newLatLng);
+                    
+                    // Log position updates for debugging (only for first few vessels to avoid spam)
+                    if (positionChanged && seenMMSIs.size <= 3) {
+                        console.log(`Ship ${mmsi || name} position updated:`, {
+                            old: { lat: currentPos.lat.toFixed(4), lng: currentPos.lng.toFixed(4) },
+                            new: { lat: lat.toFixed(4), lng: lng.toFixed(4) }
+                        });
+                    }
                     
                     // Update icon if heading changed significantly
                     const currentHeading = marker._heading || 0;
@@ -2131,7 +2121,7 @@
                         marker._heading = heading;
                     }
                     
-                    // Update popup content
+                    // Update popup content with current position
                     const typeClass = getTypeClass(type);
                     marker.setPopupContent(`
                         <div class="vessel-popup">
@@ -2144,8 +2134,8 @@
                             <div class="detail"><strong>Destination:</strong> ${destination}</div>
                             <div class="detail"><strong>Length:</strong> ${typeof length === 'number' ? length + ' m' : length}</div>
                             <div class="detail"><strong>Draft:</strong> ${typeof draft === 'number' ? draft.toFixed(1) + ' m' : draft}</div>
-                            <div class="detail"><strong>Latitude:</strong> ${lat.toFixed(4)}°</div>
-                            <div class="detail"><strong>Longitude:</strong> ${lng.toFixed(4)}°</div>
+                            <div class="detail"><strong>Latitude:</strong> ${lat.toFixed(7)}°</div>
+                            <div class="detail"><strong>Longitude:</strong> ${lng.toFixed(7)}°</div>
                         </div>
                     `);
                 } else {
@@ -2166,8 +2156,8 @@
                             <div class="detail"><strong>Destination:</strong> ${destination}</div>
                             <div class="detail"><strong>Length:</strong> ${typeof length === 'number' ? length + ' m' : length}</div>
                             <div class="detail"><strong>Draft:</strong> ${typeof draft === 'number' ? draft.toFixed(1) + ' m' : draft}</div>
-                            <div class="detail"><strong>Latitude:</strong> ${lat.toFixed(4)}°</div>
-                            <div class="detail"><strong>Longitude:</strong> ${lng.toFixed(4)}°</div>
+                            <div class="detail"><strong>Latitude:</strong> ${lat.toFixed(7)}°</div>
+                            <div class="detail"><strong>Longitude:</strong> ${lng.toFixed(7)}°</div>
                         </div>
                     `);
                     
