@@ -456,6 +456,36 @@
             color: #b0b0b0;
         }
 
+        /* Train popup styles */
+        .train-popup {
+            background: #2d2d2d;
+            color: #e0e0e0;
+            padding: 10px;
+            border-radius: 6px;
+            min-width: 220px;
+        }
+
+        .train-popup h4 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #e0e0e0;
+        }
+
+        .train-popup .detail {
+            font-size: 12px;
+            margin: 4px 0;
+            color: #b0b0b0;
+        }
+
+        .train-popup .detail strong {
+            color: #e0e0e0;
+        }
+
+        .train-marker {
+            background: transparent !important;
+            border: none !important;
+        }
+
         .node-type-badge {
             display: inline-block;
             padding: 2px 6px;
@@ -1295,6 +1325,7 @@
                 <label><input type="checkbox" id="toggleRail" checked onchange="toggleRailLayer()"> 🚂 Show Rail
                     Lines</label>
                 <label><input type="checkbox" id="toggleNodes" onchange="toggleNodeLayer()"> 🚉 Show Rail Nodes</label>
+                <label><input type="checkbox" id="toggleTrains" onchange="toggleTrainLayer()"> 🚂 Show Cargo Trains</label>
                 <label><input type="checkbox" id="toggleUP" checked onchange="filterRailByOwner()"> Union Pacific
                     (UP)</label>
                 <label><input type="checkbox" id="toggleBNSF" checked onchange="filterRailByOwner()"> BNSF
@@ -1488,6 +1519,7 @@
         const shipsLayer = L.layerGroup().addTo(map);
         const railLayer = L.layerGroup().addTo(map);
         const nodesLayer = L.layerGroup(); // Not added by default (too many nodes)
+        const trainsLayer = L.layerGroup(); // Train tracking layer
 
         // Rain/precipitation overlay layer
         let rainOverlayLayer = null;
@@ -1502,6 +1534,10 @@
 
         // Store all vessels for count recalculation on map move/zoom
         let allVessels = [];
+        
+        // Train tracking
+        let trainRefreshInterval = null;
+        let allTrains = [];
 
         // Auto-refresh state
         let autoRefreshInterval = null;
@@ -1994,6 +2030,7 @@
                         <span class="vessel-type ${typeClass}">${type}</span>
                         <div class="detail"><strong>MMSI:</strong> ${mmsi || 'Unknown'}</div>
                         <div class="detail"><strong>Flag:</strong> ${flag}</div>
+                        <div class="detail"><strong>Position:</strong> ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
                         <div class="detail"><strong>Speed:</strong> ${formatSpeed(speed)}</div>
                         <div class="detail"><strong>Heading:</strong> ${heading ? heading.toFixed(0) + '°' : 'Unknown'}</div>
                         <div class="detail"><strong>Destination:</strong> ${destination}</div>
@@ -2522,6 +2559,188 @@
         map.on('moveend', function () {
             updateVesselCount();
         });
+
+        // ========== CARGO TRAIN TRACKING ==========
+        
+        // Create cargo train icon
+        function createTrainIcon(train) {
+            return L.divIcon({
+                className: 'train-marker',
+                html: `<div style="
+                    background: #f59e0b;
+                    border: 2px solid white;
+                    border-radius: 50%;
+                    width: 24px;
+                    height: 24px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 14px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                ">🚂</div>`,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+        }
+        
+        // Load cargo train data from API
+        async function loadTrains() {
+            try {
+                const url = `${API_BASE_URL}/api/trains`;
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Train API error');
+                
+                const data = await response.json();
+                if (data.success && data.trains) {
+                    // Filter to only cargo/freight trains
+                    allTrains = data.trains.filter(t => t.type === 'freight' || t.type === 'cargo');
+                    displayTrains(allTrains);
+                    return allTrains;
+                } else {
+                    throw new Error('Invalid train data');
+                }
+            } catch (error) {
+                console.error('Failed to load trains:', error);
+                // Use fallback - but only if we have rail nodes loaded
+                if (railNodes.length > 0) {
+                    generateSimulatedCargoTrains();
+                }
+                return [];
+            }
+        }
+        
+        // Generate simulated cargo trains on actual rail nodes (fallback only)
+        function generateSimulatedCargoTrains() {
+            allTrains = [];
+            
+            if (railNodes.length === 0) {
+                console.warn('No rail nodes available for train simulation');
+                return;
+            }
+            
+            // Use actual rail nodes, prioritizing those near port facilities
+            const portFacilities = [
+                { lat: 29.7234, lng: -95.0012 }, // Barbours Cut
+                { lat: 29.6234, lng: -94.9912 }, // Bayport
+                { lat: 29.7355, lng: -95.2755 }, // Turning Basin
+                { lat: 29.7156, lng: -95.0234 }  // Care Terminal
+            ];
+            
+            // Find nodes near ports
+            const portNodes = railNodes.filter(node => {
+                return portFacilities.some(port => {
+                    const dist = Math.sqrt(
+                        Math.pow(node.lat - port.lat, 2) + 
+                        Math.pow(node.lng - port.lng, 2)
+                    );
+                    return dist < 0.1; // Within ~11km
+                });
+            });
+            
+            // Use port nodes if available, otherwise use all nodes
+            const candidateNodes = portNodes.length > 0 ? portNodes : railNodes;
+            const numTrains = Math.min(8, candidateNodes.length);
+            
+            // Randomly select nodes for trains
+            const selectedNodes = [];
+            const usedIndices = new Set();
+            for (let i = 0; i < numTrains; i++) {
+                let idx;
+                do {
+                    idx = Math.floor(Math.random() * candidateNodes.length);
+                } while (usedIndices.has(idx) && usedIndices.size < candidateNodes.length);
+                usedIndices.add(idx);
+                selectedNodes.push(candidateNodes[idx]);
+            }
+            
+            selectedNodes.forEach((node, i) => {
+                allTrains.push({
+                    id: `CARGO_${i+1}`,
+                    type: 'freight',
+                    railroad: ['UP', 'BNSF', 'TCT'][Math.floor(Math.random() * 3)],
+                    lat: node.lat,
+                    lng: node.lng,
+                    heading: Math.random() * 360,
+                    speed: Math.round((15 + Math.random() * 30) * 10) / 10,
+                    status: Math.random() > 0.2 ? 'in_transit' : 'stopped',
+                    cars: Math.floor(50 + Math.random() * 100),
+                    destination: ['Dallas', 'San Antonio', 'Austin', 'El Paso'][Math.floor(Math.random() * 4)],
+                    origin_port: 'Port of Houston'
+                });
+            });
+            
+            displayTrains(allTrains);
+        }
+        
+        // Display cargo trains on map
+        function displayTrains(trains) {
+            trainsLayer.clearLayers();
+            
+            // Filter to only cargo/freight trains
+            const cargoTrains = trains.filter(t => t.type === 'freight' || t.type === 'cargo');
+            
+            cargoTrains.forEach(train => {
+                if (!train.lat || !train.lng) return;
+                
+                // Validate coordinates are in Houston area (not in ocean)
+                if (train.lat < 29.2 || train.lat > 30.0 || 
+                    train.lng < -95.5 || train.lng > -94.5) {
+                    console.warn(`Train ${train.id} has invalid coordinates: ${train.lat}, ${train.lng}`);
+                    return;
+                }
+                
+                const icon = createTrainIcon(train);
+                const marker = L.marker([train.lat, train.lng], { icon: icon }).addTo(trainsLayer);
+                
+                // Create popup content for cargo train
+                let popupContent = `
+                    <div class="train-popup">
+                        <h4>🚂 ${train.id}</h4>
+                        <div class="detail"><strong>Type:</strong> Cargo Train</div>
+                        <div class="detail"><strong>Railroad:</strong> ${train.railroad}</div>
+                        <div class="detail"><strong>Status:</strong> ${train.status}</div>
+                        <div class="detail"><strong>Speed:</strong> ${train.speed} mph</div>
+                        <div class="detail"><strong>Cars:</strong> ${train.cars}</div>
+                        <div class="detail"><strong>Destination:</strong> ${train.destination || 'N/A'}</div>
+                `;
+                
+                if (train.origin_port) {
+                    popupContent += `<div class="detail"><strong>Origin Port:</strong> ${train.origin_port}</div>`;
+                }
+                
+                popupContent += `</div>`;
+                marker.bindPopup(popupContent);
+            });
+        }
+        
+        // Toggle train layer visibility
+        async function toggleTrainLayer() {
+            const show = document.getElementById('toggleTrains').checked;
+            
+            if (show) {
+                if (allTrains.length === 0) {
+                    await loadTrains();
+                } else {
+                    displayTrains(allTrains);
+                }
+                map.addLayer(trainsLayer);
+                
+                // Auto-refresh trains every 30 seconds
+                if (trainRefreshInterval) {
+                    clearInterval(trainRefreshInterval);
+                }
+                trainRefreshInterval = setInterval(async () => {
+                    await loadTrains();
+                }, 30000);
+            } else {
+                map.removeLayer(trainsLayer);
+                if (trainRefreshInterval) {
+                    clearInterval(trainRefreshInterval);
+                    trainRefreshInterval = null;
+                }
+            }
+        }
 
         // ========== WEATHER API INTEGRATION ==========
 

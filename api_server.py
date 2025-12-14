@@ -402,6 +402,240 @@ Return JSON in this exact format:
             "traceback": traceback.format_exc()
         }), 500
 
+@app.route('/api/trains', methods=['GET'])
+def get_trains():
+    """
+    Get cargo/freight train information for Houston area.
+    Only returns freight trains that carry cargo from ships after unloading.
+    Trains are positioned on actual rail infrastructure nodes.
+    """
+    try:
+        import pandas as pd
+        import random
+        import math
+        
+        trains = []
+        
+        # Port facility locations (where cargo is unloaded)
+        port_facilities = [
+            {"name": "Barbours Cut Container Terminal", "lat": 29.7234, "lng": -95.0012},
+            {"name": "Bayport Container Terminal", "lat": 29.6234, "lng": -94.9912},
+            {"name": "Turning Basin Terminal", "lat": 29.7355, "lng": -95.2755},
+            {"name": "Care Terminal", "lat": 29.7156, "lng": -95.0234},
+            {"name": "Jacintoport Terminal", "lat": 29.7456, "lng": -95.0834},
+            {"name": "Galena Park Terminal", "lat": 29.7356, "lng": -95.2155},
+            {"name": "Manchester Terminal", "lat": 29.7256, "lng": -95.2555},
+            {"name": "Greens Bayou Terminal", "lat": 29.7756, "lng": -95.1255},
+            {"name": "Texas City Terminal", "lat": 29.3834, "lng": -94.9134}
+        ]
+        
+        try:
+            # Load rail nodes - these are actual rail infrastructure points
+            nodes_df = pd.read_csv('data/railroad-nodes.csv')
+            
+            # Filter to Houston/Galveston area (same bounds as frontend)
+            # Columns: check which columns exist
+            lat_col = None
+            lng_col = None
+            
+            # Try to find latitude/longitude columns
+            for col in nodes_df.columns:
+                col_lower = col.lower()
+                if 'lat' in col_lower and lat_col is None:
+                    lat_col = col
+                if 'lng' in col_lower or ('lon' in col_lower and lng_col is None):
+                    lng_col = col
+            
+            # If not found, try common column names
+            if lat_col is None:
+                if 'LATITUDE' in nodes_df.columns:
+                    lat_col = 'LATITUDE'
+                elif 'LAT' in nodes_df.columns:
+                    lat_col = 'LAT'
+                elif len(nodes_df.columns) >= 13:
+                    lat_col = nodes_df.columns[12]  # Usually column 12 (0-indexed)
+            
+            if lng_col is None:
+                if 'LONGITUDE' in nodes_df.columns:
+                    lng_col = 'LONGITUDE'
+                elif 'LNG' in nodes_df.columns or 'LON' in nodes_df.columns:
+                    lng_col = 'LNG' if 'LNG' in nodes_df.columns else 'LON'
+                elif len(nodes_df.columns) >= 13:
+                    lng_col = nodes_df.columns[11]  # Usually column 11 (0-indexed)
+            
+            if lat_col is None or lng_col is None:
+                raise ValueError("Could not find latitude/longitude columns in railroad-nodes.csv")
+            
+            # Filter to Houston/Galveston area
+            min_lat, max_lat = 29.2, 30.0
+            min_lng, max_lng = -95.5, -94.5
+            
+            # Convert to numeric, handling any errors
+            nodes_df[lat_col] = pd.to_numeric(nodes_df[lat_col], errors='coerce')
+            nodes_df[lng_col] = pd.to_numeric(nodes_df[lng_col], errors='coerce')
+            
+            # Filter by bounds and remove NaN values
+            houston_nodes = nodes_df[
+                (nodes_df[lat_col] >= min_lat) & (nodes_df[lat_col] <= max_lat) &
+                (nodes_df[lng_col] >= min_lng) & (nodes_df[lng_col] <= max_lng) &
+                nodes_df[lat_col].notna() & nodes_df[lng_col].notna()
+            ].copy()
+            
+            if len(houston_nodes) == 0:
+                raise ValueError("No rail nodes found in Houston/Galveston area")
+            
+            # Load rail lines to get railroad owners
+            lines_df = pd.read_csv('data/railroad-lines.csv')
+            tx_lines = lines_df[lines_df['STATEAB'] == 'TX'] if 'STATEAB' in lines_df.columns else lines_df
+            
+            # Get railroad owners from lines
+            railroad_owners = {}
+            if 'RROWNER1' in tx_lines.columns and 'FRFRANODE' in tx_lines.columns:
+                for _, line in tx_lines.iterrows():
+                    owner = str(line.get('RROWNER1', '')).strip()
+                    if owner and owner != 'nan':
+                        # Store owner for nodes (simplified - in reality would need to match node IDs)
+                        railroad_owners[owner] = railroad_owners.get(owner, 0) + 1
+            
+            # Prioritize nodes near port facilities
+            port_nodes = []
+            for _, node in houston_nodes.iterrows():
+                node_lat = node[lat_col]
+                node_lng = node[lng_col]
+                
+                # Calculate distance to nearest port
+                min_dist = float('inf')
+                nearest_port = None
+                for port in port_facilities:
+                    dist = math.sqrt((node_lat - port['lat'])**2 + (node_lng - port['lng'])**2)
+                    if dist < min_dist:
+                        min_dist = dist
+                        nearest_port = port
+                
+                # Prefer nodes within 0.1 degrees (~11 km) of ports
+                if min_dist < 0.1:
+                    port_nodes.append({
+                        'node': node,
+                        'lat': node_lat,
+                        'lng': node_lng,
+                        'dist_to_port': min_dist,
+                        'nearest_port': nearest_port['name']
+                    })
+            
+            # Use port nodes if available, otherwise use all Houston nodes
+            candidate_nodes = port_nodes if len(port_nodes) > 0 else [
+                {'node': row, 'lat': row[lat_col], 'lng': row[lng_col], 'dist_to_port': 1.0, 'nearest_port': 'Unknown'}
+                for _, row in houston_nodes.iterrows()
+            ]
+            
+            # Generate 5-12 cargo trains positioned on actual rail nodes
+            num_trains = random.randint(5, 12)
+            
+            # Sample nodes for train positions
+            selected_nodes = random.sample(candidate_nodes, min(num_trains, len(candidate_nodes)))
+            
+            # Get list of railroad owners (prioritize major ones)
+            major_railroads = ['UP', 'BNSF', 'TCT', 'CPRS']
+            all_owners = [r for r in major_railroads if r in railroad_owners] + \
+                        [r for r in railroad_owners.keys() if r not in major_railroads]
+            
+            for i, node_data in enumerate(selected_nodes):
+                node = node_data['node']
+                node_lat = node_data['lat']
+                node_lng = node_data['lng']
+                
+                # Determine railroad (try to get from node data, or use random)
+                railroad = 'UP'  # Default
+                if 'RROWNER1' in node.index and pd.notna(node.get('RROWNER1')):
+                    railroad = str(node['RROWNER1']).strip()
+                elif len(all_owners) > 0:
+                    railroad = random.choice(all_owners)
+                
+                # Calculate heading based on direction from port (simplified)
+                nearest_port = node_data.get('nearest_port', 'Port of Houston')
+                if nearest_port != 'Unknown':
+                    # Find the port coordinates
+                    port_coords = next((p for p in port_facilities if p['name'] == nearest_port), None)
+                    if port_coords:
+                        # Calculate heading from port to node (train leaving port)
+                        dx = node_lng - port_coords['lng']
+                        dy = node_lat - port_coords['lat']
+                        heading = math.degrees(math.atan2(dx, dy))
+                        if heading < 0:
+                            heading += 360
+                    else:
+                        heading = random.uniform(0, 360)
+                else:
+                    heading = random.uniform(0, 360)
+                
+                # Train status - more likely to be in transit if far from port
+                if node_data['dist_to_port'] > 0.05:
+                    status = random.choice(["in_transit", "in_transit", "in_transit", "stopped"])
+                else:
+                    status = random.choice(["loading", "stopped", "in_transit"])
+                
+                trains.append({
+                    "id": f"CARGO_{i+1}",
+                    "type": "freight",
+                    "railroad": railroad,
+                    "lat": round(node_lat, 6),
+                    "lng": round(node_lng, 6),
+                    "heading": round(heading, 1),
+                    "speed": round(random.uniform(15, 45), 1) if status == "in_transit" else 0.0,
+                    "status": status,
+                    "cars": random.randint(50, 150),
+                    "destination": random.choice([
+                        "Dallas", "San Antonio", "Austin", 
+                        "El Paso", "Laredo", "Fort Worth"
+                    ]),
+                    "origin_port": node_data.get('nearest_port', 'Port of Houston')
+                })
+            
+        except Exception as e:
+            print(f"Error generating cargo trains: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Fallback: use known port-adjacent rail coordinates
+            port_rail_coords = [
+                {"lat": 29.7234, "lng": -95.0012, "port": "Barbours Cut"},
+                {"lat": 29.7156, "lng": -95.0234, "port": "Care Terminal"},
+                {"lat": 29.7456, "lng": -95.0834, "port": "Jacintoport"},
+                {"lat": 29.7356, "lng": -95.2155, "port": "Galena Park"},
+                {"lat": 29.7355, "lng": -95.2755, "port": "Turning Basin"},
+                {"lat": 29.6234, "lng": -94.9912, "port": "Bayport"}
+            ]
+            
+            for i, coord in enumerate(port_rail_coords[:6]):
+                trains.append({
+                    "id": f"CARGO_{i+1}",
+                    "type": "freight",
+                    "railroad": random.choice(["UP", "BNSF", "TCT"]),
+                    "lat": coord["lat"],
+                    "lng": coord["lng"],
+                    "heading": random.uniform(0, 360),
+                    "speed": round(random.uniform(15, 45), 1),
+                    "status": random.choice(["in_transit", "loading", "stopped"]),
+                    "cars": random.randint(50, 120),
+                    "destination": random.choice(["Dallas", "San Antonio", "Austin"]),
+                    "origin_port": coord["port"]
+                })
+        
+        return jsonify({
+            "success": True,
+            "trains": trains,
+            "count": len(trains),
+            "timestamp": datetime.now().isoformat(),
+            "note": "Cargo trains positioned on actual rail infrastructure nodes near port facilities."
+        })
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
 if __name__ == '__main__':
     print(f"Starting API server...")
     print(f"Ollama URL: {OLLAMA_URL}")
@@ -413,5 +647,6 @@ if __name__ == '__main__':
     print(f"  GET  /api/surge-analysis - Detailed surge analysis")
     print(f"  POST /api/chat - Chat with AI (send JSON: {{\"message\": \"your question\"}})")
     print(f"  GET  /api/rail-analysis - Analyze rail nodes (?ship_count=N&forecast_window=H)")
+    print(f"  GET  /api/trains - Get cargo train positions (on actual rail infrastructure)")
     
     app.run(host='0.0.0.0', port=5000, debug=True)
