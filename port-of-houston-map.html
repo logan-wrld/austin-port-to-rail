@@ -160,67 +160,118 @@
         .legend-node { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; border: 1px solid white; }
         .node-junction-color { background: #7c3aed; }
         .node-station-color { background: #dc2626; }
+        .collapsible {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            max-width: 280px;
+            margin-top: 10px;
+        }
+
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .collapsible-header h2 {
+            font-size: 16px;
+            margin-bottom: 0;
+            color: #1a365d;
+        }
+
+        .collapsible-content {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .collapsible-content.open {
+            display: block;
+        }
+
+        .bottom-right-widgets {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
     
     <!-- Rail Network Panel -->
-    <div class="rail-panel">
-        <h3>🚂 Rail Network</h3>
-        <div class="rail-stats">
-            <div><strong>Total Segments:</strong> <span id="railCount">0</span></div>
-            <div><strong>Total Miles:</strong> <span id="railMiles">0</span></div>
-        </div>
-        <div class="rail-toggle">
-            <label><input type="checkbox" id="toggleRail" checked onchange="toggleRailLayer()"> Show Rail Lines</label>
-            <label><input type="checkbox" id="toggleNodes" onchange="toggleNodeLayer()"> Show Rail Nodes</label>
-            <label><input type="checkbox" id="toggleUP" checked onchange="filterRailByOwner()"> Union Pacific (UP)</label>
-            <label><input type="checkbox" id="toggleBNSF" checked onchange="filterRailByOwner()"> BNSF Railway</label>
-            <label><input type="checkbox" id="togglePTRA" checked onchange="filterRailByOwner()"> PTRA (Port Terminal)</label>
-            <label><input type="checkbox" id="toggleOther" checked onchange="filterRailByOwner()"> Other Railroads</label>
-        </div>
-        <div class="rail-stats" style="margin-top:8px;">
-            <div><strong>Rail Nodes:</strong> <span id="nodeCount">0</span></div>
-            <div><strong>Stations:</strong> <span id="stationCount">0</span></div>
-        </div>
-        <div class="legend" style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">
-            <div class="legend-item"><span class="legend-line rail-up"></span> Union Pacific</div>
-            <div class="legend-item"><span class="legend-line rail-bnsf"></span> BNSF Railway</div>
-            <div class="legend-item"><span class="legend-line" style="background:#3b82f6"></span> PTRA (Port Terminal)</div>
-            <div class="legend-item"><span class="legend-line rail-other"></span> Other Railroads</div>
-            <div class="legend-item"><span class="legend-node node-junction-color"></span> Junction Node</div>
-            <div class="legend-item"><span class="legend-node node-station-color"></span> Passenger Station</div>
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <h3>🚂 Rail Network</h3>
+                <span>-</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="rail-stats">
+                    <div><strong>Total Segments:</strong> <span id="railCount">0</span></div>
+                    <div><strong>Total Miles:</strong> <span id="railMiles">0</span></div>
+                </div>
+                <div class="rail-toggle">
+                    <label><input type="checkbox" id="toggleRail" checked onchange="toggleRailLayer()"> Show Rail Lines</label>
+                    <label><input type="checkbox" id="toggleNodes" onchange="toggleNodeLayer()"> Show Rail Nodes</label>
+                    <label><input type="checkbox" id="toggleUP" checked onchange="filterRailByOwner()"> Union Pacific (UP)</label>
+                    <label><input type="checkbox" id="toggleBNSF" checked onchange="filterRailByOwner()"> BNSF Railway</label>
+                    <label><input type="checkbox" id="togglePTRA" checked onchange="filterRailByOwner()"> PTRA (Port Terminal)</label>
+                    <label><input type="checkbox" id="toggleOther" checked onchange="filterRailByOwner()"> Other Railroads</label>
+                </div>
+                <div class="rail-stats" style="margin-top:8px;">
+                    <div><strong>Rail Nodes:</strong> <span id="nodeCount">0</span></div>
+                    <div><strong>Stations:</strong> <span id="stationCount">0</span></div>
+                </div>
+                <div class="legend" style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">
+                    <div class="legend-item"><span class="legend-line rail-up"></span> Union Pacific</div>
+                    <div class="legend-item"><span class="legend-line rail-bnsf"></span> BNSF Railway</div>
+                    <div class="legend-item"><span class="legend-line" style="background:#3b82f6"></span> PTRA (Port Terminal)</div>
+                    <div class="legend-item"><span class="legend-line rail-other"></span> Other Railroads</div>
+                    <div class="legend-item"><span class="legend-node node-junction-color"></span> Junction Node</div>
+                    <div class="legend-item"><span class="legend-node node-station-color"></span> Passenger Station</div>
+                </div>
+            </div>
         </div>
     </div>
     
-    <div class="info-panel">
-        <h2>🚢 Port of Houston</h2>
-        <p>AIS Ship Tracking</p>
-        
-        <div class="ship-count">
-            <strong>Vessels Tracked:</strong> <span id="shipCount">0</span>
-        </div>
-        
-        <div class="controls">
-            <button class="btn" id="refreshBtn" onclick="loadAISData()">🔄 Refresh</button>
-            <button class="btn" id="autoRefreshBtn" onclick="toggleAutoRefresh()">▶️ Auto</button>
-            <button class="btn danger" onclick="clearShips()">🗑️ Clear</button>
-        </div>
-        
-        <div id="status" class="status">Ready to load vessels</div>
-        
-        <div class="data-source" style="margin-top:10px; padding:8px; background:#fffbeb; border-radius:4px; font-size:10px; color:#92400e;">
-            <strong>📡 Data Mode:</strong> <span id="dataMode">Simulated</span><br>
-            <span style="color:#78716c;">Ships positioned along actual shipping lanes</span>
-        </div>
-        
-        <div class="legend">
-            <div class="legend-item"><span class="legend-ship"></span> Vessels (AIS)</div>
-            <div class="legend-item"><span class="legend-dot terminal"></span> Terminals</div>
-            <div class="legend-item"><span class="legend-dot container"></span> Container Facilities</div>
-            <div class="legend-item"><span class="legend-dot facility"></span> Other Facilities</div>
-            <div class="legend-item" style="margin-top:5px; padding-top:5px; border-top:1px solid #eee;"><span class="legend-line rail-up" style="display:inline-block;"></span> Rail Network</div>
+    <div class="bottom-right-widgets">
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <h2>🚢 Port of Houston</h2>
+                <span>-</span>
+            </div>
+            <div class="collapsible-content">
+                <p>AIS Ship Tracking</p>
+                
+                <div class="ship-count">
+                    <strong>Vessels Tracked:</strong> <span id="shipCount">0</span>
+                </div>
+                
+                <div class="controls">
+                    <button class="btn" id="refreshBtn" onclick="loadAISData()">🔄 Refresh</button>
+                    <button class="btn" id="autoRefreshBtn" onclick="toggleAutoRefresh()">▶️ Auto</button>
+                    <button class="btn danger" onclick="clearShips()">🗑️ Clear</button>
+                </div>
+                
+                <div id="status" class="status">Ready to load vessels</div>
+                
+                <div class="data-source" style="margin-top:10px; padding:8px; background:#fffbeb; border-radius:4px; font-size:10px; color:#92400e;">
+                    <strong>📡 Data Mode:</strong> <span id="dataMode">Simulated</span><br>
+                    <span style="color:#78716c;">Ships positioned along actual shipping lanes</span>
+                </div>
+                
+                <div class="legend">
+                    <div class="legend-item"><span class="legend-ship"></span> Vessels (AIS)</div>
+                    <div class="legend-item"><span class="legend-dot terminal"></span> Terminals</div>
+                    <div class="legend-item"><span class="legend-dot container"></span> Container Facilities</div>
+                    <div class="legend-item"><span class="legend-dot facility"></span> Other Facilities</div>
+                    <div class="legend-item" style="margin-top:5px; padding-top:5px; border-top:1px solid #eee;"><span class="legend-line rail-up" style="display:inline-block;"></span> Rail Network</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1080,6 +1131,17 @@
             }
         });
         
+        function toggleCollapsible(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector('span');
+            content.classList.toggle('open');
+            if (content.classList.contains('open')) {
+                icon.textContent = '-';
+            } else {
+                icon.textContent = '+';
+            }
+        }
+
         // Initialize rail network and load data
         async function initializeMap() {
             console.log('Initializing map...');
