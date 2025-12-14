@@ -1,5 +1,7 @@
 # austin-port-to-rail
 
+
+Presentation: https://docs.google.com/presentation/d/e/2PACX-1vRXZVk-4CzIkITKDLPA1wOgRdwsFp91cJegz56iyZR8LFjg2EqV4H8p30uG-GArSMp8EL185dg3hRZD/pub?start=false&loop=false&delayms=3000
 # plan
 
 direction of ships travel-- 
@@ -102,3 +104,7 @@ pip install -r requirements.txt
 python indexing.py # index the db and put all the data in chroma, RUN ONCE  
 python query.py # run the model with the data
 ```
+
+
+
+Prompts for AI 
