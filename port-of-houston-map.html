@@ -1951,53 +1951,57 @@
             const movementFactor = timeOffset / 3600; // 0 to 1 over the hour
 
             // Define realistic ship positions along the Houston Ship Channel and Galveston Bay
+            // Port of Houston is at ~29.76, -95.0
+            // At 10 knots: 24h = 240nm, 48h = 480nm, 72h = 720nm
+            // 1 degree lat ≈ 60nm, so: 24h = 4 deg, 48h = 8 deg, 72h = 12 deg
             const shipPositions = [
-                // Deep Gulf of Mexico - ships 80-120nm out (48-72 hour ETA)
-                { lat: 27.8, lng: -93.5, heading: 315, zone: 'deep-gulf' },
-                { lat: 27.9, lng: -93.8, heading: 320, zone: 'deep-gulf' },
-                { lat: 28.0, lng: -94.0, heading: 325, zone: 'deep-gulf' },
-                { lat: 28.1, lng: -93.6, heading: 318, zone: 'deep-gulf' },
-                // Mid Gulf - ships 50-80nm out (24-48 hour ETA)
-                { lat: 28.3, lng: -94.0, heading: 330, zone: 'mid-gulf' },
-                { lat: 28.4, lng: -94.2, heading: 328, zone: 'mid-gulf' },
-                { lat: 28.5, lng: -93.9, heading: 332, zone: 'mid-gulf' },
-                { lat: 28.55, lng: -94.1, heading: 335, zone: 'mid-gulf' },
-                // Near Gulf - ships 20-50nm out (12-24 hour ETA)
-                { lat: 28.7, lng: -94.2, heading: 338, zone: 'near-gulf' },
-                { lat: 28.8, lng: -94.3, heading: 340, zone: 'near-gulf' },
-                { lat: 28.95, lng: -94.35, heading: 340, zone: 'gulf' },
-                { lat: 29.02, lng: -94.42, heading: 335, zone: 'gulf' },
-                { lat: 29.08, lng: -94.48, heading: 332, zone: 'gulf' },
-                { lat: 29.15, lng: -94.55, heading: 330, zone: 'gulf' },
-                { lat: 29.22, lng: -94.62, heading: 328, zone: 'gulf' },
-                // Galveston Bay approach - ships entering
-                { lat: 29.28, lng: -94.68, heading: 330, zone: 'approach' },
-                { lat: 29.32, lng: -94.72, heading: 330, zone: 'approach' },
-                { lat: 29.36, lng: -94.76, heading: 325, zone: 'approach' },
-                { lat: 29.40, lng: -94.78, heading: 320, zone: 'bay' },
-                // Galveston Bay - ships transiting
-                { lat: 29.40, lng: -94.78, heading: 320, zone: 'bay' },
-                { lat: 29.45, lng: -94.82, heading: 315, zone: 'bay' },
-                { lat: 29.50, lng: -94.86, heading: 310, zone: 'bay' },
-                { lat: 29.53, lng: -94.88, heading: 305, zone: 'bay' },
-                // Entering Houston Ship Channel from Morgan's Point
-                { lat: 29.58, lng: -94.91, heading: 300, zone: 'channel' },
-                { lat: 29.62, lng: -94.94, heading: 295, zone: 'channel' },
-                { lat: 29.66, lng: -94.97, heading: 290, zone: 'channel' },
-                { lat: 29.68, lng: -94.98, heading: 290, zone: 'channel' },
-                { lat: 29.69, lng: -95.00, heading: 285, zone: 'channel' },
-                // Mid channel near Bayport
-                { lat: 29.71, lng: -95.02, heading: 280, zone: 'channel' },
-                { lat: 29.72, lng: -95.05, heading: 275, zone: 'channel' },
-                { lat: 29.72, lng: -95.08, heading: 270, zone: 'channel' },
+                // Deep Gulf/Caribbean - 48-72 hour ETA (500-700nm out, lat 17-22)
+                { lat: 18.5, lng: -91.0, heading: 350, zone: 'deep-gulf', speed: 12 },  // ~680nm
+                { lat: 19.2, lng: -92.5, heading: 5, zone: 'deep-gulf', speed: 11 },    // ~640nm
+                { lat: 20.0, lng: -93.0, heading: 10, zone: 'deep-gulf', speed: 10 },   // ~590nm
+                { lat: 21.0, lng: -92.0, heading: 15, zone: 'deep-gulf', speed: 13 },   // ~530nm
+                { lat: 22.0, lng: -93.5, heading: 20, zone: 'deep-gulf', speed: 11 },   // ~470nm
+                // Mid Gulf - 24-48 hour ETA (240-480nm out, lat 22-26)
+                { lat: 23.5, lng: -93.0, heading: 25, zone: 'mid-gulf', speed: 12 },    // ~380nm
+                { lat: 24.5, lng: -93.5, heading: 20, zone: 'mid-gulf', speed: 10 },    // ~320nm
+                { lat: 25.0, lng: -94.0, heading: 15, zone: 'mid-gulf', speed: 11 },    // ~290nm
+                { lat: 25.5, lng: -93.2, heading: 25, zone: 'mid-gulf', speed: 13 },    // ~260nm
+                { lat: 26.0, lng: -94.2, heading: 10, zone: 'mid-gulf', speed: 10 },    // ~230nm
+                // Near Gulf - 12-24 hour ETA (120-240nm out, lat 26-28)
+                { lat: 26.5, lng: -94.0, heading: 5, zone: 'near-gulf', speed: 12 },    // ~200nm
+                { lat: 27.0, lng: -94.2, heading: 350, zone: 'near-gulf', speed: 11 },  // ~170nm
+                { lat: 27.5, lng: -94.5, heading: 345, zone: 'near-gulf', speed: 10 },  // ~140nm
+                // Close Gulf approach - 6-12 hour ETA (60-120nm out, lat 28-29)
+                { lat: 28.0, lng: -94.3, heading: 340, zone: 'gulf', speed: 11 },      // ~110nm
+                { lat: 28.3, lng: -94.4, heading: 338, zone: 'gulf', speed: 10 },      // ~90nm
+                { lat: 28.6, lng: -94.5, heading: 335, zone: 'gulf', speed: 12 },      // ~70nm
+                { lat: 28.9, lng: -94.6, heading: 332, zone: 'gulf', speed: 11 },      // ~50nm
+                // Galveston Bay approach - 2-6 hour ETA (20-60nm out)
+                { lat: 29.1, lng: -94.65, heading: 330, zone: 'approach', speed: 10 }, // ~40nm
+                { lat: 29.32, lng: -94.72, heading: 330, zone: 'approach', speed: 10 },  // ~30nm
+                { lat: 29.36, lng: -94.76, heading: 325, zone: 'approach', speed: 9 },   // ~25nm
+                // Galveston Bay - ships transiting (1-3 hour ETA)
+                { lat: 29.42, lng: -94.80, heading: 320, zone: 'bay', speed: 12 },
+                { lat: 29.48, lng: -94.84, heading: 315, zone: 'bay', speed: 11 },
+                { lat: 29.53, lng: -94.88, heading: 305, zone: 'bay', speed: 10 },
+                // Entering Houston Ship Channel from Morgan's Point (< 1 hour)
+                { lat: 29.58, lng: -94.91, heading: 300, zone: 'channel', speed: 8 },
+                { lat: 29.62, lng: -94.94, heading: 295, zone: 'channel', speed: 7 },
+                { lat: 29.66, lng: -94.97, heading: 290, zone: 'channel', speed: 8 },
+                { lat: 29.68, lng: -94.98, heading: 290, zone: 'channel', speed: 6 },
+                { lat: 29.69, lng: -95.00, heading: 285, zone: 'channel', speed: 7 },
+                // Mid channel near Bayport (minutes away)
+                { lat: 29.71, lng: -95.02, heading: 280, zone: 'channel', speed: 6 },
+                { lat: 29.72, lng: -95.05, heading: 275, zone: 'channel', speed: 5 },
+                { lat: 29.72, lng: -95.08, heading: 270, zone: 'channel', speed: 6 },
                 // Near Jacintoport
-                { lat: 29.73, lng: -95.10, heading: 270, zone: 'channel' },
-                { lat: 29.73, lng: -95.12, heading: 268, zone: 'channel' },
-                { lat: 29.73, lng: -95.15, heading: 265, zone: 'channel' },
+                { lat: 29.73, lng: -95.10, heading: 270, zone: 'channel', speed: 5 },
+                { lat: 29.73, lng: -95.12, heading: 268, zone: 'channel', speed: 4 },
+                { lat: 29.73, lng: -95.15, heading: 265, zone: 'channel', speed: 5 },
                 // Approaching Turning Basin
-                { lat: 29.74, lng: -95.18, heading: 265, zone: 'upper' },
-                { lat: 29.74, lng: -95.22, heading: 260, zone: 'upper' },
-                { lat: 29.74, lng: -95.26, heading: 255, zone: 'upper' },
+                { lat: 29.74, lng: -95.18, heading: 265, zone: 'upper', speed: 4 },
+                { lat: 29.74, lng: -95.22, heading: 260, zone: 'upper', speed: 3 },
+                { lat: 29.74, lng: -95.26, heading: 255, zone: 'upper', speed: 2 },
                 // At terminals (stationary/slow)
                 { lat: 29.72, lng: -95.00, heading: 45, zone: 'terminal', speed: 0 },
                 { lat: 29.62, lng: -94.99, heading: 90, zone: 'terminal', speed: 0 },

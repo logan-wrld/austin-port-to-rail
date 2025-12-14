@@ -626,4 +626,4 @@ if __name__ == '__main__':
     print(f"  GET  /api/ship-tracker/docked - Get docked vessels")
     print(f"  GET  /api/ship-tracker/history - Get status change history")
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=True)
