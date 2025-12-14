@@ -1507,6 +1507,11 @@
         let autoRefreshInterval = null;
         let isAutoRefreshing = false;
 
+        // Vessel cache for persistent tracking (prevents random jumping)
+        let vesselCache = new Map();
+        let lastVesselUpdate = Date.now();
+        const VESSEL_UPDATE_INTERVAL = 30000; // 30 seconds
+
         // Weather API configuration
         // Get free API key at https://openweathermap.org/api
         const WEATHER_API_KEY = ''; // Add your OpenWeatherMap API key here
@@ -1791,6 +1796,15 @@
         // Generate simulated vessels for demo purposes
         // These are realistic positions along the Houston Ship Channel
         function generateSimulatedVessels() {
+            const now = Date.now();
+            const timeDelta = (now - lastVesselUpdate) / 1000; // seconds since last update
+            lastVesselUpdate = now;
+
+            // If we have cached vessels, update their positions based on heading/speed
+            if (vesselCache.size > 0) {
+                return updateCachedVessels(timeDelta);
+            }
+
             // Real vessel names that commonly visit Port of Houston
             const vesselNames = [
                 'MSC AURORA', 'MAERSK SEALAND', 'EVER GOLDEN', 'CMA CGM MARCO POLO',
@@ -1928,7 +1942,86 @@
                 });
             }
 
+            // Cache the vessels for future updates
+            vessels.forEach(v => vesselCache.set(v.mmsi, v));
+
             return vessels;
+        }
+
+        // Update cached vessels by moving them based on speed/heading
+        function updateCachedVessels(timeDeltaSeconds) {
+            const vessels = [];
+            const KNOTS_TO_DEG_PER_SEC = 1 / 3600 / 60; // Approx conversion (1 knot ≈ 1 nm/hr)
+            
+            vesselCache.forEach((vessel, mmsi) => {
+                // Calculate movement based on heading and speed
+                const speedDegPerSec = vessel.speed * KNOTS_TO_DEG_PER_SEC;
+                const headingRad = (vessel.heading || 0) * Math.PI / 180;
+                
+                // Move vessel
+                const deltaLat = Math.cos(headingRad) * speedDegPerSec * timeDeltaSeconds;
+                const deltaLng = Math.sin(headingRad) * speedDegPerSec * timeDeltaSeconds;
+                
+                vessel.lat += deltaLat;
+                vessel.lng += deltaLng;
+                
+                // Add small random heading variation for realism
+                vessel.heading += (Math.random() - 0.5) * 2;
+                
+                // Small speed variation
+                vessel.speed = Math.max(0, vessel.speed + (Math.random() - 0.5) * 0.5);
+                
+                // Check if vessel reached terminal/destination (near port facilities)
+                const nearTerminal = vessel.lat > 29.7 && vessel.lng < -95.2;
+                if (nearTerminal && vessel.speed > 2) {
+                    vessel.speed = Math.max(0, vessel.speed - 1);
+                }
+                
+                // Remove vessels that have exited the area or been docked too long
+                const inBounds = vessel.lat >= 27.5 && vessel.lat <= 30.0 && 
+                                 vessel.lng >= -96.0 && vessel.lng <= -93.0;
+                
+                if (inBounds) {
+                    vessels.push(vessel);
+                }
+            });
+            
+            // Update cache
+            vesselCache.clear();
+            vessels.forEach(v => vesselCache.set(v.mmsi, v));
+            
+            // Occasionally add new vessels entering from the Gulf (10% chance)
+            if (Math.random() < 0.1 && vessels.length < 35) {
+                const newVessel = generateNewInboundVessel();
+                vessels.push(newVessel);
+                vesselCache.set(newVessel.mmsi, newVessel);
+            }
+            
+            return vessels;
+        }
+        
+        // Generate a new vessel entering from the Gulf
+        function generateNewInboundVessel() {
+            const vesselNames = ['ATLANTIC SPIRIT', 'PACIFIC EXPLORER', 'GULF CARRIER', 'OCEAN PIONEER', 
+                                 'COASTAL TRADER', 'SEA VENTURE', 'MARITIME GLORY', 'CARGO KING'];
+            const vesselTypes = ['Container Ship', 'Tanker', 'Bulk Carrier', 'Cargo'];
+            const destinations = ['HOUSTON TX', 'GALVESTON TX', 'TEXAS CITY TX', 'BAYPORT TX'];
+            const flags = ['US', 'PA', 'LR', 'MH', 'SG', 'HK', 'GR', 'MT'];
+            const vesselType = vesselTypes[Math.floor(Math.random() * vesselTypes.length)];
+            
+            return {
+                mmsi: 300000000 + Math.floor(Math.random() * 99999999),
+                name: vesselNames[Math.floor(Math.random() * vesselNames.length)] + ' ' + Math.floor(Math.random() * 100),
+                lat: 27.8 + Math.random() * 0.3,
+                lng: -93.5 - Math.random() * 0.5,
+                heading: 315 + Math.random() * 30,
+                speed: 12 + Math.random() * 4,
+                type: vesselType,
+                destination: destinations[Math.floor(Math.random() * destinations.length)],
+                flag: flags[Math.floor(Math.random() * flags.length)],
+                length: vesselType.includes('Container') ? 300 + Math.floor(Math.random() * 100) : 150 + Math.floor(Math.random() * 150),
+                draft: 10 + Math.random() * 8
+            };
         }
 
         // Display vessels on map
@@ -2093,10 +2186,10 @@
                 setStatus('Auto-refresh stopped', '');
             } else {
                 loadAISData();
-                autoRefreshInterval = setInterval(loadAISData, 60000); // Refresh every 60 seconds
+                autoRefreshInterval = setInterval(loadAISData, 30000); // Refresh every 30 seconds
                 isAutoRefreshing = true;
                 btn.textContent = '⏸️ Auto';
-                setStatus('Auto-refresh enabled (60s)', 'success');
+                setStatus('Auto-refresh enabled (30s)', 'success');
             }
         }
 
@@ -2805,8 +2898,16 @@
             drawRailNetwork();
         });
 
-        // Load initial data
+        // Load initial data and start auto-refresh
         loadAISData();
+        
+        // Auto-enable vessel refresh (every 30 seconds)
+        setTimeout(() => {
+            if (!isAutoRefreshing) {
+                toggleAutoRefresh();
+                console.log('Auto-refresh enabled automatically');
+            }
+        }, 2000); // Start auto-refresh after 2 seconds
 
         // ========== AI ANALYTICS INTEGRATION ==========
 
