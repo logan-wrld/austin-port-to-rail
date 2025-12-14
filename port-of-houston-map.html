@@ -203,41 +203,6 @@
 <body>
     <div id="map"></div>
     
-    <!-- Rail Network Panel -->
-        <div class="collapsible">
-            <div class="collapsible-header" onclick="toggleCollapsible(this)">
-                <h3>🚂 Rail Network</h3>
-                <span>-</span>
-            </div>
-            <div class="collapsible-content">
-                <div class="rail-stats">
-                    <div><strong>Total Segments:</strong> <span id="railCount">0</span></div>
-                    <div><strong>Total Miles:</strong> <span id="railMiles">0</span></div>
-                </div>
-                <div class="rail-toggle">
-                    <label><input type="checkbox" id="toggleRail" checked onchange="toggleRailLayer()"> Show Rail Lines</label>
-                    <label><input type="checkbox" id="toggleNodes" onchange="toggleNodeLayer()"> Show Rail Nodes</label>
-                    <label><input type="checkbox" id="toggleUP" checked onchange="filterRailByOwner()"> Union Pacific (UP)</label>
-                    <label><input type="checkbox" id="toggleBNSF" checked onchange="filterRailByOwner()"> BNSF Railway</label>
-                    <label><input type="checkbox" id="togglePTRA" checked onchange="filterRailByOwner()"> PTRA (Port Terminal)</label>
-                    <label><input type="checkbox" id="toggleOther" checked onchange="filterRailByOwner()"> Other Railroads</label>
-                </div>
-                <div class="rail-stats" style="margin-top:8px;">
-                    <div><strong>Rail Nodes:</strong> <span id="nodeCount">0</span></div>
-                    <div><strong>Stations:</strong> <span id="stationCount">0</span></div>
-                </div>
-                <div class="legend" style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">
-                    <div class="legend-item"><span class="legend-line rail-up"></span> Union Pacific</div>
-                    <div class="legend-item"><span class="legend-line rail-bnsf"></span> BNSF Railway</div>
-                    <div class="legend-item"><span class="legend-line" style="background:#3b82f6"></span> PTRA (Port Terminal)</div>
-                    <div class="legend-item"><span class="legend-line rail-other"></span> Other Railroads</div>
-                    <div class="legend-item"><span class="legend-node node-junction-color"></span> Junction Node</div>
-                    <div class="legend-item"><span class="legend-node node-station-color"></span> Passenger Station</div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
     <div class="bottom-right-widgets">
         <div class="collapsible">
             <div class="collapsible-header" onclick="toggleCollapsible(this)">
@@ -270,6 +235,38 @@
                     <div class="legend-item"><span class="legend-dot container"></span> Container Facilities</div>
                     <div class="legend-item"><span class="legend-dot facility"></span> Other Facilities</div>
                     <div class="legend-item" style="margin-top:5px; padding-top:5px; border-top:1px solid #eee;"><span class="legend-line rail-up" style="display:inline-block;"></span> Rail Network</div>
+                </div>
+            </div>
+        </div>
+        <div class="collapsible">
+            <div class="collapsible-header" onclick="toggleCollapsible(this)">
+                <h3>🚂 Rail Network</h3>
+                <span>-</span>
+            </div>
+            <div class="collapsible-content">
+                <div class="rail-stats">
+                    <div><strong>Total Segments:</strong> <span id="railCount">0</span></div>
+                    <div><strong>Total Miles:</strong> <span id="railMiles">0</span></div>
+                </div>
+                <div class="rail-toggle">
+                    <label><input type="checkbox" id="toggleRail" checked onchange="toggleRailLayer()"> Show Rail Lines</label>
+                    <label><input type="checkbox" id="toggleNodes" onchange="toggleNodeLayer()"> Show Rail Nodes</label>
+                    <label><input type="checkbox" id="toggleUP" checked onchange="filterRailByOwner()"> Union Pacific (UP)</label>
+                    <label><input type="checkbox" id="toggleBNSF" checked onchange="filterRailByOwner()"> BNSF Railway</label>
+                    <label><input type="checkbox" id="togglePTRA" checked onchange="filterRailByOwner()"> PTRA (Port Terminal)</label>
+                    <label><input type="checkbox" id="toggleOther" checked onchange="filterRailByOwner()"> Other Railroads</label>
+                </div>
+                <div class="rail-stats" style="margin-top:8px;">
+                    <div><strong>Rail Nodes:</strong> <span id="nodeCount">0</span></div>
+                    <div><strong>Stations:</strong> <span id="stationCount">0</span></div>
+                </div>
+                <div class="legend" style="margin-top:8px; padding-top:8px; border-top:1px solid #eee;">
+                    <div class="legend-item"><span class="legend-line rail-up"></span> Union Pacific</div>
+                    <div class="legend-item"><span class="legend-line rail-bnsf"></span> BNSF Railway</div>
+                    <div class="legend-item"><span class="legend-line" style="background:#3b82f6"></span> PTRA (Port Terminal)</div>
+                    <div class="legend-item"><span class="legend-line rail-other"></span> Other Railroads</div>
+                    <div class="legend-item"><span class="legend-node node-junction-color"></span> Junction Node</div>
+                    <div class="legend-item"><span class="legend-node node-station-color"></span> Passenger Station</div>
                 </div>
             </div>
         </div>
