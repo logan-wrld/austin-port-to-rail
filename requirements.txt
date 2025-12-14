@@ -9,3 +9,6 @@ chromadb
 sentence-transformers
 ollama
 pandas
+flask
+flask-cors
+requests
