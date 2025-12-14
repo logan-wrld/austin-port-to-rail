@@ -1655,12 +1655,22 @@
                 const minLon = -95.4;
                 const maxLon = -94.7;
 
-                // Try ArcGIS Maritime service
+                // Add timestamp to prevent caching - always fetch fresh data
+                const timestamp = Date.now();
+                
+                // Try ArcGIS Maritime service - add cache-busting parameter
                 const response = await fetch(
                     `https://services.arcgis.com/LBbVDC0hKPAnLRpO/arcgis/rest/services/AIS_Vessel_Tracks/FeatureServer/0/query?` +
                     `where=1%3D1&geometry=${minLon}%2C${minLat}%2C${maxLon}%2C${maxLat}&geometryType=esriGeometryEnvelope&` +
-                    `inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&f=json`,
-                    { signal: AbortSignal.timeout(8000) }
+                    `inSR=4326&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&f=json&_=${timestamp}`,
+                    { 
+                        signal: AbortSignal.timeout(8000),
+                        cache: 'no-store',
+                        headers: {
+                            'Cache-Control': 'no-cache, no-store, must-revalidate',
+                            'Pragma': 'no-cache'
+                        }
+                    }
                 );
 
                 if (!response.ok) throw new Error('AIS API unavailable');
@@ -1708,7 +1718,54 @@
                 throw new Error('No vessels in response');
 
             } catch (error) {
-                console.log('API unavailable, using simulation:', error.message);
+                console.log('ArcGIS API unavailable, trying backend API:', error.message);
+                
+                // Try backend API as fallback
+                try {
+                    const backendResponse = await fetch(`${API_BASE_URL}/api/ship-tracker/vessels`, {
+                        signal: AbortSignal.timeout(5000),
+                        cache: 'no-store'
+                    });
+                    
+                    if (backendResponse.ok) {
+                        const backendData = await backendResponse.json();
+                        if (backendData.vessels && backendData.vessels.length > 0) {
+                            // Convert backend vessel format to display format
+                            const vessels = backendData.vessels.map(v => ({
+                                mmsi: v.mmsi,
+                                name: v.name,
+                                lat: v.lat,
+                                lng: v.lng,
+                                heading: v.heading || 0,
+                                speed: v.speed || 0,
+                                type: v.type || 'Unknown',
+                                destination: v.destination || 'Unknown',
+                                flag: v.flag || 'Unknown',
+                                length: v.length || 'Unknown',
+                                draft: v.draft || 'Unknown'
+                            })).filter(v => v.lat && v.lng);
+                            
+                            if (vessels.length > 0) {
+                                document.getElementById('dataMode').textContent = 'Live (Backend API)';
+                                if (isDarkTheme) {
+                                    document.getElementById('dataMode').parentElement.style.background = '#1a2a1a';
+                                    document.getElementById('dataMode').parentElement.style.borderColor = '#2a4a2a';
+                                } else {
+                                    document.getElementById('dataMode').parentElement.style.background = '#d1fae5';
+                                    document.getElementById('dataMode').parentElement.style.borderColor = '#86efac';
+                                }
+                                displayVessels(vessels);
+                                refreshBtn.disabled = false;
+                                return;
+                            }
+                        }
+                    }
+                } catch (backendError) {
+                    console.log('Backend API also unavailable:', backendError.message);
+                }
+                
+                // Fall back to simulation
+                console.log('Using simulation mode');
                 document.getElementById('dataMode').textContent = 'Simulated Demo';
                 if (isDarkTheme) {
                     document.getElementById('dataMode').parentElement.style.background = '#2a2a1a';
@@ -1861,6 +1918,11 @@
 
             const vessels = [];
             const numVessels = 35; // Fixed number for consistency
+            
+            // Get time-based offset for movement (seconds since a reference time)
+            // This makes ships appear to move over time
+            const timeOffset = (Date.now() / 1000) % 3600; // Cycle every hour
+            const movementFactor = timeOffset / 3600; // 0 to 1 over the hour
 
             // Define realistic ship positions along the Houston Ship Channel and Galveston Bay
             const shipPositions = [
@@ -1944,6 +2006,24 @@
                     speed = 8 + seededRandom(seed + 3) * 6; // 8-14 knots
                 }
 
+                // Calculate movement based on speed and heading (for simulation)
+                // Convert speed from knots to degrees per hour (approximate)
+                // 1 knot ≈ 0.000277 degrees per minute ≈ 0.0166 degrees per hour
+                const speedDegreesPerHour = speed * 0.0166;
+                const headingRad = (pos.heading * Math.PI) / 180;
+                
+                // Move ship along its heading based on time and speed
+                // Use a unique time offset per ship (based on seed) so they don't all move in sync
+                const shipTimeOffset = (timeOffset + seededRandom(seed + 100) * 3600) % 3600;
+                const shipMovementFactor = shipTimeOffset / 3600;
+                const distanceMoved = speedDegreesPerHour * shipMovementFactor;
+                
+                // Calculate new position based on movement
+                const latOffset = distanceMoved * Math.cos(headingRad);
+                const lngOffset = distanceMoved * Math.sin(headingRad);
+                const movedLat = pos.lat + latOffset;
+                const movedLng = pos.lng + lngOffset;
+
                 // All metadata is deterministic based on position
                 const vesselType = vesselTypes[Math.floor(seededRandom(seed + 4) * vesselTypes.length)];
                 const nameIndex = Math.floor(seededRandom(seed + 5) * vesselNames.length);
@@ -1954,8 +2034,8 @@
                 vessels.push({
                     mmsi: mmsiBase,
                     name: vesselNames[nameIndex],
-                    lat: pos.lat,
-                    lng: pos.lng,
+                    lat: movedLat,
+                    lng: movedLng,
                     heading: pos.heading,
                     speed: speed,
                     type: vesselType,
@@ -1972,12 +2052,13 @@
             return vessels;
         }
 
-        // Display vessels on map
+        // Store vessel markers by MMSI for efficient updates
+        const vesselMarkers = new Map();
+
+        // Display vessels on map - updates existing markers or creates new ones
         function displayVessels(vessels) {
             // Store all vessels for count recalculation
             allVessels = vessels;
-            
-            shipsLayer.clearLayers();
             
             // Get current map visible bounds for counting
             const bounds = map.getBounds();
@@ -1985,8 +2066,9 @@
             const northEast = bounds.getNorthEast();
             
             let count = 0;
+            const seenMMSIs = new Set();
 
-            // Add all vessels to the map (so they appear when you pan)
+            // Update or create markers for all vessels
             vessels.forEach(v => {
                 // Handle different API response formats
                 const lat = v.lat || v.geometry?.coordinates?.[1] || v.properties?.latitude;
@@ -2002,25 +2084,69 @@
                 const draft = v.draft || v.properties?.draft || 'Unknown';
 
                 if (!lat || !lng) return;
+                
+                // Use MMSI as key, or generate one if missing
+                const key = mmsi || `vessel_${lat}_${lng}`;
+                seenMMSIs.add(key);
 
-                // Add marker for all vessels (they'll be visible when you pan to them)
-                const icon = createShipIcon(heading, type);
-                const marker = L.marker([lat, lng], { icon: icon }).addTo(shipsLayer);
+                // Check if marker already exists
+                let marker = vesselMarkers.get(key);
+                
+                if (marker) {
+                    // Update existing marker position and icon
+                    const newLatLng = [lat, lng];
+                    marker.setLatLng(newLatLng);
+                    
+                    // Update icon if heading changed significantly
+                    const currentHeading = marker._heading || 0;
+                    if (Math.abs(currentHeading - heading) > 5) {
+                        const icon = createShipIcon(heading, type);
+                        marker.setIcon(icon);
+                        marker._heading = heading;
+                    }
+                    
+                    // Update popup content
+                    const typeClass = getTypeClass(type);
+                    marker.setPopupContent(`
+                        <div class="vessel-popup">
+                            <h3>🚢 ${name}</h3>
+                            <span class="vessel-type ${typeClass}">${type}</span>
+                            <div class="detail"><strong>MMSI:</strong> ${mmsi || 'Unknown'}</div>
+                            <div class="detail"><strong>Flag:</strong> ${flag}</div>
+                            <div class="detail"><strong>Speed:</strong> ${formatSpeed(speed)}</div>
+                            <div class="detail"><strong>Heading:</strong> ${heading ? heading.toFixed(0) + '°' : 'Unknown'}</div>
+                            <div class="detail"><strong>Destination:</strong> ${destination}</div>
+                            <div class="detail"><strong>Length:</strong> ${typeof length === 'number' ? length + ' m' : length}</div>
+                            <div class="detail"><strong>Draft:</strong> ${typeof draft === 'number' ? draft.toFixed(1) + ' m' : draft}</div>
+                            <div class="detail"><strong>Latitude:</strong> ${lat.toFixed(4)}°</div>
+                            <div class="detail"><strong>Longitude:</strong> ${lng.toFixed(4)}°</div>
+                        </div>
+                    `);
+                } else {
+                    // Create new marker
+                    const icon = createShipIcon(heading, type);
+                    marker = L.marker([lat, lng], { icon: icon }).addTo(shipsLayer);
+                    marker._heading = heading;
 
-                const typeClass = getTypeClass(type);
-                marker.bindPopup(`
-                    <div class="vessel-popup">
-                        <h3>🚢 ${name}</h3>
-                        <span class="vessel-type ${typeClass}">${type}</span>
-                        <div class="detail"><strong>MMSI:</strong> ${mmsi || 'Unknown'}</div>
-                        <div class="detail"><strong>Flag:</strong> ${flag}</div>
-                        <div class="detail"><strong>Speed:</strong> ${formatSpeed(speed)}</div>
-                        <div class="detail"><strong>Heading:</strong> ${heading ? heading.toFixed(0) + '°' : 'Unknown'}</div>
-                        <div class="detail"><strong>Destination:</strong> ${destination}</div>
-                        <div class="detail"><strong>Length:</strong> ${typeof length === 'number' ? length + ' m' : length}</div>
-                        <div class="detail"><strong>Draft:</strong> ${typeof draft === 'number' ? draft.toFixed(1) + ' m' : draft}</div>
-                    </div>
-                `);
+                    const typeClass = getTypeClass(type);
+                    marker.bindPopup(`
+                        <div class="vessel-popup">
+                            <h3>🚢 ${name}</h3>
+                            <span class="vessel-type ${typeClass}">${type}</span>
+                            <div class="detail"><strong>MMSI:</strong> ${mmsi || 'Unknown'}</div>
+                            <div class="detail"><strong>Flag:</strong> ${flag}</div>
+                            <div class="detail"><strong>Speed:</strong> ${formatSpeed(speed)}</div>
+                            <div class="detail"><strong>Heading:</strong> ${heading ? heading.toFixed(0) + '°' : 'Unknown'}</div>
+                            <div class="detail"><strong>Destination:</strong> ${destination}</div>
+                            <div class="detail"><strong>Length:</strong> ${typeof length === 'number' ? length + ' m' : length}</div>
+                            <div class="detail"><strong>Draft:</strong> ${typeof draft === 'number' ? draft.toFixed(1) + ' m' : draft}</div>
+                            <div class="detail"><strong>Latitude:</strong> ${lat.toFixed(4)}°</div>
+                            <div class="detail"><strong>Longitude:</strong> ${lng.toFixed(4)}°</div>
+                        </div>
+                    `);
+                    
+                    vesselMarkers.set(key, marker);
+                }
 
                 // Only count vessels within visible map bounds
                 if (lat >= southWest.lat && lat <= northEast.lat &&
@@ -2028,6 +2154,14 @@
                     count++;
                 }
             });
+
+            // Remove markers for vessels that are no longer in the data
+            for (const [key, marker] of vesselMarkers.entries()) {
+                if (!seenMMSIs.has(key)) {
+                    shipsLayer.removeLayer(marker);
+                    vesselMarkers.delete(key);
+                }
+            }
 
             document.getElementById('shipCount').textContent = count;
             setStatus(`Updated: ${new Date().toLocaleTimeString()}`, 'success');
@@ -2285,10 +2419,10 @@
                 setStatus('Auto-refresh stopped', '');
             } else {
                 loadAISData();
-                autoRefreshInterval = setInterval(loadAISData, 60000); // Refresh every 60 seconds
+                autoRefreshInterval = setInterval(loadAISData, 10000); // Refresh every 10 seconds for smoother movement
                 isAutoRefreshing = true;
                 btn.textContent = '⏸️ Auto';
-                setStatus('Auto-refresh enabled (60s)', 'success');
+                setStatus('Auto-refresh enabled (10s)', 'success');
             }
         }
 
