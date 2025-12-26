@@ -91,8 +91,13 @@ Did they push the boundaries?
 10 pts - Performance: Did they optimize the system for speed or scale? (e.g., "We optimized the simulation to run at 50x real-time speed").
 
 
+## Prerequisites
 
-Steps to run:
+- First install Ollama on your Linux device
+
+- Download the version of Ollama you want to run with the "query.py" file
+
+## Steps to run:
 
 User Interface: 
 `python3 -m http.server 8000`
