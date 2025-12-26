@@ -24,23 +24,14 @@
             width: 100%;
         }
 
-        /* Dark theme with colorful features - dark land, colorful lines */
+        /* Dark theme - CartoDB Dark Matter (no filter needed) */
         .leaflet-container {
-            background-color: #0a0a0a;
+            background-color: #0d1117;
         }
         
-        /* Aggressive filter: very dark land but highly saturated colorful features */
-        body.dark-theme .leaflet-tile-container img {
-            filter: brightness(0.4) contrast(1.8) saturate(2.0);
-        }
-        
-        /* Light theme - no filter */
+        /* Light theme - ESRI Ocean basemap (no filter needed) */
         body.light-theme .leaflet-container {
-            background-color: #f4f4f4;
-        }
-        
-        body.light-theme .leaflet-tile-container img {
-            filter: none;
+            background-color: #a5bfdd;
         }
 
         .info-panel {
@@ -1421,18 +1412,19 @@
                 map.removeLayer(currentTileLayer);
             }
 
-            // Add OpenStreetMap with dark filter
-            currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
+            // CartoDB Dark Matter - excellent for ocean/port visualization
+            // Water bodies clearly visible, no CSS filter needed
+            currentTileLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                subdomains: 'abcd',
+                maxZoom: 20
             });
             currentTileLayer.addTo(map);
 
-            // CSS class will handle the filter automatically
-
-            // Update container background
+            // Update container background to match ocean color
             const container = document.querySelector('.leaflet-container');
             if (container) {
-                container.style.backgroundColor = '#0a0a0a';
+                container.style.backgroundColor = '#0d1117';
             }
             
             // Update body background
@@ -1452,25 +1444,38 @@
             document.body.classList.remove('light-theme');
         }
 
+        // ESRI Ocean Reference layer (stored for cleanup)
+        let oceanReferenceLayer = null;
+
         // Apply light theme
         function applyLightTheme() {
-            // Remove existing tile layer
+            // Remove existing tile layers
             if (currentTileLayer) {
                 map.removeLayer(currentTileLayer);
             }
+            if (oceanReferenceLayer) {
+                map.removeLayer(oceanReferenceLayer);
+                oceanReferenceLayer = null;
+            }
 
-            // Add standard OpenStreetMap
-            currentTileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '© OpenStreetMap contributors'
+            // ESRI World Ocean Basemap - shows bathymetry, shipping lanes, nautical features
+            currentTileLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Sources: GEBCO, NOAA, CHS, OSU, UNH, CSUMB, National Geographic, DeLorme, NAVTEQ',
+                maxZoom: 13
             });
             currentTileLayer.addTo(map);
 
-            // CSS class will handle removing the filter automatically
+            // Add ESRI Ocean Reference overlay for labels
+            oceanReferenceLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Reference/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '',
+                maxZoom: 13
+            });
+            oceanReferenceLayer.addTo(map);
 
-            // Update container background
+            // Update container background to match ocean
             const container = document.querySelector('.leaflet-container');
             if (container) {
-                container.style.backgroundColor = '#f4f4f4';
+                container.style.backgroundColor = '#a5bfdd';
             }
             
             // Update body background
@@ -2062,10 +2067,62 @@
         // Store vessel markers by MMSI for efficient updates
         const vesselMarkers = new Map();
 
+        // Water boundary check - filters out vessels that appear on land
+        // Uses simplified polygon of Houston Ship Channel, Galveston Bay, and Gulf of Mexico
+        function isInWater(lat, lng) {
+            // Gulf of Mexico - anything south of ~29.2 and east of Galveston Island is water
+            if (lat < 29.2) return true;
+            
+            // Galveston Bay and Channel water zones (simplified polygons)
+            const waterZones = [
+                // Gulf approach and Galveston Bay entrance
+                { minLat: 29.2, maxLat: 29.45, minLng: -95.0, maxLng: -94.4 },
+                // Galveston Bay main body
+                { minLat: 29.35, maxLat: 29.65, minLng: -95.1, maxLng: -94.7 },
+                // Houston Ship Channel (narrow corridor)
+                { minLat: 29.58, maxLat: 29.78, minLng: -95.3, maxLng: -94.85 },
+                // Upper channel to Turning Basin
+                { minLat: 29.70, maxLat: 29.77, minLng: -95.35, maxLng: -95.1 },
+                // Galveston Island south shore
+                { minLat: 29.15, maxLat: 29.35, minLng: -95.0, maxLng: -94.65 },
+                // Texas City Channel area
+                { minLat: 29.35, maxLat: 29.45, minLng: -95.0, maxLng: -94.85 },
+            ];
+            
+            for (const zone of waterZones) {
+                if (lat >= zone.minLat && lat <= zone.maxLat &&
+                    lng >= zone.minLng && lng <= zone.maxLng) {
+                    return true;
+                }
+            }
+            
+            // For areas not covered by zones, use rough land exclusion
+            // Texas mainland is generally west of -95.1 and north of 29.5
+            if (lat > 29.5 && lng < -95.35) return false;
+            
+            // East of -94.5 at these latitudes is Gulf water
+            if (lng > -94.5) return true;
+            
+            // Default to true for unknown areas (better to show than hide)
+            return true;
+        }
+
         // Display vessels on map - updates existing markers or creates new ones
         function displayVessels(vessels) {
+            // Filter out vessels that appear on land
+            const waterVessels = vessels.filter(v => {
+                const lat = v.lat || v.geometry?.coordinates?.[1] || v.properties?.latitude;
+                const lng = v.lng || v.geometry?.coordinates?.[0] || v.properties?.longitude;
+                if (!lat || !lng) return false;
+                const inWater = isInWater(lat, lng);
+                if (!inWater) {
+                    console.log(`Filtered land vessel: ${v.name || v.mmsi} at ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
+                }
+                return inWater;
+            });
+            
             // Store all vessels for count recalculation
-            allVessels = vessels;
+            allVessels = waterVessels;
             
             // Get current map visible bounds for counting
             const bounds = map.getBounds();
